@@ -17,7 +17,9 @@ library(corrplot)
 #######################
 
 #### READ AND PREPARE DATA ####
-setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Parasite2016_analysis')
+
+#setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Parasite2016_analysis')
+setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
 data <- read.csv("data_2016.csv", sep=';')
 data$site <- as.factor(data$site)
 data$fish <- as.factor(data$fish)
