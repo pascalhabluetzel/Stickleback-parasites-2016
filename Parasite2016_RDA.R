@@ -3,7 +3,8 @@ library(ggvegan)
 library(ggthemes)
 library(raster)
 
-setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Parasite2016_analysis')
+setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016') #edit_PH
+#setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Parasite2016_analysis') #edit_PH
 
 ab <- read.csv("abundance.csv", sep=";")
 ab <- ab[,-1]
@@ -15,13 +16,20 @@ spa <- read.csv("space.csv", sep=';')
 plot(spa$long ~ spa$lat)
 dist <- pointDistance(spa, allpairs = TRUE, lonlat = FALSE)
 
-env <- read.csv("env_max.csv", sep=';')
+env_max <- read.csv("env_max.csv", sep=';')
+env_av <- read.csv("env_av.csv", sep=';') #edit_PH
+
+env_all <- cbind(env_max, env_av) #edit_PH
+
+cor(env_all) #edit_PH
+
+env_select <- (env_all[,c(4,6:8,10:12)]) #edit_PH
 
 # Hellinger transformation of the species dataset ####
 spe.hel <- decostand(pre,"hellinger") #prevalence or abundance
 
 #### Environmental variables ####
-spe.rda <- rda(spe.hel, env)
+spe.rda <- rda(spe.hel, env_select) #edit_PH
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
 anova(spe.rda)
@@ -29,8 +37,8 @@ anova.cca(spe.rda, step=1000);
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
-mod0 <- rda(spe.hel ~ 1, env)  # Model with intercept only
-mod1 <- rda(spe.hel ~ ., env)  # Model with all explanatory variables
+mod0 <- rda(spe.hel ~ 1, env_select)  # Model with intercept only  #edit_PH
+mod1 <- rda(spe.hel ~ ., env_select)  # Model with all explanatory variables  #edit_PH
 step.res <- ordiR2step(mod0, mod1, direction = "backward",perm.max = 200)
 step.res$anova  # Summary table
 
@@ -84,8 +92,8 @@ R2 <- RsquareAdj(spa.rda)$r.squared;
 R2 <- RsquareAdj(spa.rda)$adj.r.squared;
 R2
 
-mod0 <- rda(spe.hel ~ 1, spa2)  # Model with intercept only
-mod1 <- rda(spe.hel ~ ., spa2)  # Model with all explanatory variables
+mod0 <- rda(spe.hel ~ 1, spa.PCNM)  # Model with intercept only  #edit_PH
+mod1 <- rda(spe.hel ~ ., spa.PCNM)  # Model with all explanatory variables  #edit_PH
 step.res <- ordiR2step(mod0, mod1, direction = "backward",perm.max = 200)
 step.res$anova  # Summary table
 
@@ -95,7 +103,7 @@ g + geom_hline(yintercept = 0, linetype="dotted") + geom_vline(xintercept = 0, l
 ggsave("environmentspace2.png", units="in", width=10, height=10, dpi=300)
 
 # Spatial variables  ####
-spa.rda <- rda(env,space)
+spa.rda <- rda(env_select,spa.PCNM)  #edit_PH
 summary(spa.rda)
 plot(spa.rda)
 anova(spa.rda)
@@ -123,3 +131,42 @@ spe.varpart1
 
 
 
+
+# Effect of environment on individual parasite taxa
+
+
+data_2016 <- read.csv("data_2016.csv", sep=';')
+env_av <- read.csv("env_av.csv", sep=';')
+
+library(dplyr)
+env_av_exp <- env_av %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+
+data <- cbind(data_2016, env_av_exp)
+
+data$site <- as.factor(data$site)
+data$fish <- as.factor(data$fish)
+data$length <- as.numeric(data$length)
+
+#### 1.2 ABUNDANCE ####
+
+# ZIGLMM (glmmTMB package)
+library(glmmTMB)
+
+fit_zipoisson <- glmmTMB(tricho ~ Sex + sqrt(length) + sqrt(T_av) + pH_av + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(oPO4_av) + confactor + (1|ecto_screener) + (1|site),
+                         data=data,
+                         ziformula=~1,
+                         family=poisson)
+summary(fit_zipoisson)
+Anova(fit_zipoisson)
+
+
+
+levels(as.factor(data_2016$site))
+
+model <- lm(ab[,1]~sqrt(env_select$Temperature) + sqrt(env_select$Conductivity) + sqrt(env_select$speciesrichness) + sqrt(env_select$T_av) + sqrt(env_select$O2_av) + sqrt(env_select$con_av)  + sqrt(env_select$KjN_av))
+summary(model)
+
+model <- lm(ab[,1]~sqrt(env_select$Temperature) + sqrt(env_select$speciesrichness) + sqrt(env_select$T_av) + sqrt(env_select$O2_av)  + sqrt(env_select$KjN_av))
+res <- resid(model)
+
+plot(res, sqrt(env_select$Conductivity))
