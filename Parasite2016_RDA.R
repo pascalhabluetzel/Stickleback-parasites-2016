@@ -136,12 +136,16 @@ spe.varpart1
 
 
 data_2016 <- read.csv("data_2016.csv", sep=';')
-env_av <- read.csv("env_av.csv", sep=';')
+env_av <- read.csv("Env_av.csv", sep=';')
+env_max <- read.csv("env_max.csv", sep=';')
+spavar <- read.csv("space2.csv", sep=';') #spatial variables
 
 library(dplyr)
 env_av_exp <- env_av %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+env_max_exp <- env_max %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 
-data <- cbind(data_2016, env_av_exp)
+data <- cbind(data_2016, env_av_exp, env_max_exp, spavar_exp)
 
 data$site <- as.factor(data$site)
 data$fish <- as.factor(data$fish)
@@ -152,12 +156,44 @@ data$length <- as.numeric(data$length)
 # ZIGLMM (glmmTMB package)
 library(glmmTMB)
 
-fit_zipoisson <- glmmTMB(tricho ~ Sex + sqrt(length) + sqrt(T_av) + pH_av + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(oPO4_av) + confactor + (1|ecto_screener) + (1|site),
+cor(cbind(data$T_av, data$Temperature, data$O2_av, data$con_av, data$KjN_av, data$netcen, data$updist))
+
+fit_zipoisson <- glmmTMB(gyro ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|ecto_screener),
                          data=data,
-                         ziformula=~1,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
                          family=poisson)
 summary(fit_zipoisson)
+
+fit_zipoisson <- glmmTMB(tricho ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|ecto_screener),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+summary(fit_zipoisson)
+
+fit_zipoisson <- glmmTMB(glugea ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|ecto_screener),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+summary(fit_zipoisson)
+
+fit_zipoisson <- glmmTMB(contra ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|endo_screener),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+summary(fit_zipoisson)
+
+fit_zipoisson <- glmmTMB(angui ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|endo_screener),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+summary(fit_zipoisson)
+library(car)
 Anova(fit_zipoisson)
+
+library(performance)
+collinearity <- check_collinearity(fit_zipoisson)
+plot(collinearity)
+normality <- check_normality(fit_zipoisson, effects="random")
 
 
 
@@ -170,3 +206,74 @@ model <- lm(ab[,1]~sqrt(env_select$Temperature) + sqrt(env_select$speciesrichnes
 res <- resid(model)
 
 plot(res, sqrt(env_select$Conductivity))
+
+
+
+install.packages("buildmer")
+
+library(buildmer)
+
+fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|ecto_screener),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+fit_zipoisson
+
+fit_zipoisson <- glmmTMB(gyro ~ sqrt(Temperature) + (1|site) + (1|ecto_screener),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+summary(fit_zipoisson)
+Anova(fit_zipoisson)
+
+fit_zipoisson <- buildglmmTMB(tricho ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + (1|site) + (1|ecto_screener),
+                              data=data,
+                              ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av),
+                              family=poisson)
+fit_zipoisson
+
+fit_zipoisson <- glmmTMB(tricho ~ Sex + sqrt(length) + sqrt(KjN_av) + (1|site) + (1|ecto_screener),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av),
+                         family=poisson)
+summary(fit_zipoisson)
+Anova(fit_zipoisson)
+
+fit_zipoisson <- buildglmmTMB(glugea ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|ecto_screener),
+                              data=data,
+                              ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                              family=poisson)
+fit_zipoisson
+
+fit_zipoisson <- glmmTMB(glugea ~ sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+summary(fit_zipoisson)
+Anova(fit_zipoisson)
+
+fit_zipoisson <- buildglmmTMB(contra ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|endo_screener),
+                              data=data,
+                              ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                              family=poisson)
+fit_zipoisson
+
+fit_zipoisson <- glmmTMB(contra ~ sqrt(T_av) + sqrt(netcen),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+summary(fit_zipoisson)
+Anova(fit_zipoisson)
+
+fit_zipoisson <- buildglmmTMB(angui ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|endo_screener),
+                              data=data,
+                              ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                              family=poisson)
+fit_zipoisson
+
+fit_zipoisson <- glmmTMB(angui ~ sqrt(length) + sqrt(T_av) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(updist) + (1|endo_screener),
+                         data=data,
+                         ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         family=poisson)
+summary(fit_zipoisson)
+Anova(fit_zipoisson)
