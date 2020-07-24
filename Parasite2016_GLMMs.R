@@ -5,14 +5,17 @@ library(car) # ANOVA
 library(performance) # for checking model requirements
 library(buildmer) # evaluating and comparing different models (stepwise model selection)
 library(lme4) # GLMMs
+library(vegan) # for MEMs
+library(nlme) # for lme
 
 # Set working directory
 setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
 
 # Load data
 data_2016 <- read.csv("data_2016.csv", sep=';') #field and parasite data
-env_av <- read.csv("Env_av.csv", sep=';') #environmental variables (average values)
-env_max <- read.csv("env_max.csv", sep=';') #environmental variables (max. values)
+env <- read.csv("Environment_R.csv", sep=',') #all environmental data
+#env_av <- read.csv("Env_av.csv", sep=';') #environmental variables (average values)
+#env_max <- read.csv("env_max.csv", sep=';') #environmental variables (max. values)
 spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
 distance_matrix <- read.csv("distance_matrix.csv", sep=';') #spatial variables: distance matrix
 
@@ -57,22 +60,34 @@ cor(spavar$netcen, spa.PCNM$V2)
 plot(spavar$netcen, spa.PCNM$V2) #second MEM corresponds to network centrality
 
 # remove correlated variables
-cor(cbind(env_max, env_av, spavar))
-# Nitrogen (max and average) is related to phosphorus (max and average) -> keep only average nitrogen
-# max. and average oxygen are highly correlated -> keep only average
-# max temperature and average temperature are not related to other parameters
-# max and average pH are related to max and average conductivity -> keep only average conductivity
+write.csv(cor(cbind(env[,-1], spavar), use="pairwise.complete.obs"), file="collinearity.csv")
+# uncorrelated variables: T_max, T_av, T_min, con_min, COD_min, KjN_min, NH4_min, NO3_min, SM_min, T, con, COD, NO3, SM
+# correlation within variable type: pH (all 4 measures, keep pH_av), O2_av and O2_min (keep O2_av), O2_sat_av and O2_sat_min (keep 02_sat_av), Cl (all except Cl, which is correlated with Cl_max -> keep only Cl_av); COD_av and COD_max (keep COD_av); 
+# correlation between variable types: pH_av and con_av (keep con_av), O2_av and O2_sat_av (keep O2_sat_av), O2_max and O2_sat_max (keep O2_sat_max), O2 and O2_sat (keep O2_sat)
+# BOC, NO2 oPO4 -> keep only NO2_av
+# NO3 and Nt -> keep only NO3_av
+# KjN, NH4 and Pt -> keep only NH4_av
+# pH and conductivity -> keep only con_av
+# SO4: all measures correlated -> keep only SO4_av
+# SM: all measures correlated -> keep only SM_av
+# Cl: all measures correlated -> keep only Cl_av
+# COD: all measures somewhat correlated -> keep only COD_av
+# temp: all measures somewhat correlated -> keep only T_av
+# O2 and O2_sat: all measures somewhat correlated -> keep only O2_sat_av
 # speciesrichness is marginally related to network centrality (corr.coef. -0.60) -> keep only network centrality
 # updist and updist2 are correlated -> keep only updist
 # updist3 is not related to any other parameter -> keep
 
+write.csv(cor(cbind(env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av","SO4_av")], spavar), use="pairwise.complete.obs"), file="collinearity_selected.csv")
+
 # make a new data frame by combinding parasite, environmental and space data
-env_av_exp <- env_av %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
-env_max_exp <- env_max %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+env_exp <- env %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+#env_av_exp <- env_av %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+#env_max_exp <- env_max %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 spa.PCNM_exp <- spa.PCNM %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 
-data <- cbind(data_2016, env_av_exp, env_max_exp, spavar_exp, spa.PCNM_exp)
+data <- cbind(data_2016, sqrt(env_exp[,-1]), sqrt(spavar_exp), spa.PCNM_exp)
 data$site <- as.factor(data$site)
 data$fish <- as.factor(data$fish)
 data$length <- as.numeric(data$length)
@@ -80,12 +95,16 @@ data$length <- as.numeric(data$length)
 # Effect of environment on host condition
 confactor <- resid(lm(data$weight~data$length + data$Sex), na.action=na.exclude)
 summary(confactor)
-select <- buildglmmTMB(confactor ~ sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site),
+select <- buildglmmTMB(confactor ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
                               data=data,
+                              include = ~ (1|site),
                               crit="AIC")
 select
-model <- lme(confactor ~ sqrt(T_av) + sqrt(Temperature) + sqrt(netcen), random=~1|site, data=data, na.action=na.omit)
+model <- lme(confactor ~ NH4 + netcen, random=~1|site, data=data, na.action=na.omit)
 summary(model)
+
+collinearity <- check_collinearity(model)
+plot(collinearity)
 
 # Effect of environment on Parasite Index
 
@@ -122,26 +141,38 @@ for(j in 1:nrow(data)){
   + max(data$cistsintestine[j]/sd(data$cistsintestine, na.rm=T))*(data$cistsintestine[j]/sd(data$cistsintestine, na.rm=T))
 }
 
-select <- buildglmmTMB(PI ~ Sex + sqrt(T_av) + confactor + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site),
+select <- buildglmmTMB(PI ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
                        data=data,
-                       crit="AIC")
+                       include = ~ (1|site),
+                       crit="LRT")
 select
-model <- lme(PI ~ sqrt(T_av) + confactor, random=~1|site, data=data, na.action=na.omit)
+model <- lme(PI ~ Cl_av + T_av + COD_av + NO2_av + NH4_av, random=~1|site, data=data, na.action=na.omit)
 summary(model)
 
-select <- buildglmmTMB(PI_ecto ~ Sex + sqrt(T_av) + confactor + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|ecto_screener),
+collinearity <- check_collinearity(model)
+plot(collinearity)
+
+select <- buildglmmTMB(PI_ecto ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                        data=data,
-                       crit="AIC")
+                       include = ~ (1|site),
+                       crit="LRT")
 select
-model <- lme(PI_ecto ~ confactor + sqrt(con_av), random=~1|site, data=data, na.action=na.omit)
+model <- lme(PI_ecto ~ confactor + Cl_av + con_av + NO3_av + COD_av + NO2_av + netcen, random=~1|site, data=data, na.action=na.omit)
 summary(model)
 
-select <- buildglmmTMB(PI_endo ~ Sex + sqrt(T_av) + confactor + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|endo_screener),
+collinearity <- check_collinearity(model)
+plot(collinearity)
+
+select <- buildglmmTMB(PI_endo ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|endo_screener),
                        data=data,
+                       include = ~ (1|site),
                        crit="AIC")
 select
-model <- lme(PI_endo ~ confactor + sqrt(Temperature) + sqrt(netcen), random=~1|site, data=data, na.action=na.omit)
+model <- lme(PI_endo ~ sqrt(length) + Cl_av + NO3_av + O2_sat_av + updist, random=~1|site, data=data, na.action=na.omit)
 summary(model)
+
+collinearity <- check_collinearity(model)
+plot(collinearity)
 
 # Effect of environment on individual parasite taxa
 
@@ -149,15 +180,21 @@ summary(model)
 
 # ZIGLMM (glmmTMB package)
 
-#check whether spatial variables are correlated with environmental variables
-cor(cbind(data$T_av, data$Temperature, data$O2_av, data$con_av, data$KjN_av, data$netcen, data$updist, data$updist3, data$speciesrichness))
-
 #Gyrodactylus
-fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|ecto_screener),
+fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|endo_screener),
                               data=data,
-                              ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                              ziformula= ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
                               family=poisson,
-                              crit="AIC")
+                              include = ~ (1|site),
+                              crit="LRT")
+fit_zipoisson
+
+fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|endo_screener) + (1|site),
+                              data=data,
+                              ziformula= ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
+                              family=poisson,
+                              #include = ~ (1|site),
+                              crit="LRT")
 fit_zipoisson
 
 fit_zipoisson <- glmmTMB(gyro ~ sqrt(Temperature) + (1|site),
