@@ -98,7 +98,7 @@ summary(confactor)
 select <- buildglmmTMB(confactor ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
                               data=data,
                               include = ~ (1|site),
-                              crit="AIC")
+                              crit="LRT")
 select
 model <- lme(confactor ~ NH4 + netcen, random=~1|site, data=data, na.action=na.omit)
 summary(model)
@@ -181,7 +181,7 @@ plot(collinearity)
 # ZIGLMM (glmmTMB package)
 
 #Gyrodactylus
-fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|endo_screener),
+fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                               data=data,
                               ziformula= ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
                               family=poisson,
@@ -189,17 +189,17 @@ fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con
                               crit="LRT")
 fit_zipoisson
 
-fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|endo_screener) + (1|site),
+fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                               data=data,
-                              ziformula= ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
+                              ziformula= ~ 1 + (1|site),
                               family=poisson,
-                              #include = ~ (1|site),
+                              include = ~ (1|site),
                               crit="LRT")
 fit_zipoisson
 
-fit_zipoisson <- glmmTMB(gyro ~ sqrt(Temperature) + (1|site),
+fit_zipoisson <- glmmTMB(gyro ~ 1 + confactor + (1|site) + (1|ecto_screener),
                          data=data,
-                         ziformula= ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         ziformula= ~ 1 + (1|site),
                          family=poisson)
 summary(fit_zipoisson)
 Anova(fit_zipoisson)
@@ -219,16 +219,17 @@ normality <- check_normality(fit_zipoisson, effects="random")
 
 
 #Trichodina (netcen and updist are not in the model because the model did not converge)
-fit_zipoisson <- buildglmmTMB(tricho ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + (1|site) + (1|ecto_screener),
+fit_zipoisson <- buildglmmTMB(tricho ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                               data=data,
-                              ziformula= ~ Sex + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av),
+                              ziformula= ~ 1 + (1|site),
                               family=poisson,
-                              crit="AIC")
+                              include = ~ (1|site),
+                              crit="LRT")
 fit_zipoisson
 
-fit_zipoisson <- glmmTMB(tricho ~ Sex + sqrt(length) + confactor + sqrt(con_av) + sqrt(KjN_av) + (1|site),
+fit_zipoisson <- glmmTMB(tricho ~ sqrt(length) + confactor + Cl_av + COD_av + Sex + NO2_av + con_av + (1|ecto_screener) + (1|site),
                          data=data,
-                         ziformula= ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av),
+                         ziformula= ~ 1 + (1|site),
                          family=poisson)
 summary(fit_zipoisson)
 Anova(fit_zipoisson)
@@ -239,16 +240,17 @@ normality <- check_normality(fit_zipoisson, effects="random")
 
 
 #Glugea
-fit_zipoisson <- buildglmmTMB(glugea ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|ecto_screener),
+fit_zipoisson <- buildglmmTMB(glugea ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                               data=data,
-                              ziformula= ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                              ziformula= ~ 1 + (1|site),
                               family=poisson,
-                              crit="AIC")
+                              include = ~ (1|site),
+                              crit="LRT")
 fit_zipoisson
 
-fit_zipoisson <- glmmTMB(glugea ~ sqrt(length) + sqrt(T_av) + confactor + sqrt(Temperature) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site),
+fit_zipoisson <- glmmTMB(glugea ~ con_av + sqrt(length) + NH4_av + T_av + NO2_av + (1|site),
                          data=data,
-                         ziformula= ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                         ziformula= ~ 1 + (1|site),
                          family=poisson)
 summary(fit_zipoisson)
 Anova(fit_zipoisson)
@@ -260,12 +262,16 @@ plot(normality)
 
 
 #Contracaecum
-fit_zipoisson <- buildglmmTMB(contra ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist) + (1|site) + (1|endo_screener),
+fit_zipoisson <- buildglmmTMB(contra ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|endo_screener),
                               data=data,
-                              ziformula= ~ Sex + sqrt(length) + confactor + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist),
+                              ziformula= ~ 1 + (1|site),
                               family=poisson,
-                              crit="AIC")
+                              include = ~ (1|site),
+                              direction = c('order', 'forward'),
+                              crit="LRT")
 fit_zipoisson
+
+?buildglmmTMB
 
 fit_zipoisson <- glmmTMB(contra ~ sqrt(length) + confactor + sqrt(T_av) + sqrt(netcen),
                          data=data,
