@@ -3,7 +3,66 @@ library(ggvegan)
 library(ggthemes)
 library(raster)
 
-setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016') #edit_PH
+# Set working directory
+setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
+
+# Load data
+data_2016 <- read.csv("data_2016.csv", sep=';') #field and parasite data
+env <- read.csv("Environment_R.csv", sep=',') #all environmental data
+spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
+
+# make a new data frame by combinding parasite, environmental and space data
+env_exp <- env %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+
+data <- cbind(data_2016, sqrt(env_exp[,-1]), sqrt(spavar_exp))
+data$site <- as.factor(data$site)
+data$fish <- as.factor(data$fish)
+data$length <- as.numeric(data$length)
+
+
+data2 <- data[complete.cases(data[,c(23,24,25,27,28,29,30,31,32,33)]),]
+spe.hel <- vegdist(decostand(data2[,c(23,24,25,27,28,29,30,31,32,33)],"hellinger"), "euc")
+
+hist(as.matrix(data2[,c(23,24,25,27,28,29,30,31,32,33)]), breaks=2000)
+
+dummy_env <- matrix(0, nrow(data2), length(levels(data2$site)))
+for(i in 1:length(levels(data2$site))){
+  dummy_env[,i] <- ifelse(data2$site == levels(data2$site)[i], 1, 0)
+}
+
+env_select <- cbind(data2[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")], dummy_env)
+
+#### Environmental variables ####
+spe.rda <- rda(spe.hel, env_select)
+spe.rda <- dbrda(spe.hel ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + '1', env_select)
+plot(spe.rda, scaling = 1)
+summary(spe.rda)
+anova(spe.rda)
+anova.cca(spe.rda, step=1000);
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
+
+# Spatial variables  ####
+spa.rda <- rda(spe.hel, cbind(data2$netcen, data2$updist, dummy_env))
+summary(spa.rda)
+plot(spa.rda)
+anova(spa.rda)
+anova.cca(spa.rda, step=1000)
+RsquareAdj(spa.rda)$r.squared;
+RsquareAdj(spa.rda)$adj.r.squared;
+
+# Spatial variables  ####
+spa.rda <- rda(spe.hel, cbind(data2$netcen, data2$updist))
+summary(spa.rda)
+plot(spa.rda)
+anova(spa.rda)
+anova.cca(spa.rda, step=1000)
+RsquareAdj(spa.rda)$r.squared;
+RsquareAdj(spa.rda)$adj.r.squared;
+
+
+
 #setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Parasite2016_analysis') #edit_PH
 
 ab <- read.csv("abundance.csv", sep=";")
@@ -23,7 +82,10 @@ env_all <- cbind(env_max, env_av) #edit_PH
 
 cor(env_all) #edit_PH
 
-env_select <- (env_all[,c(4,6:8,10:12)]) #edit_PH
+env_select <- (env_all[,c(4,6,8,10:12)]) #edit_PH
+
+env <- read.csv("Environment_R.csv", sep=',') #all environmental data
+env_select <- (env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]) #edit_PH
 
 # Hellinger transformation of the species dataset ####
 spe.hel <- decostand(pre,"hellinger") #prevalence or abundance
@@ -89,6 +151,7 @@ plot(spa.rda)
 anova(spa.rda)
 anova.cca(spa.rda, step=1000)
 R2 <- RsquareAdj(spa.rda)$r.squared;
+R2
 R2 <- RsquareAdj(spa.rda)$adj.r.squared;
 R2
 
