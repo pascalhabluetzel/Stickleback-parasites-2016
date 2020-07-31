@@ -13,6 +13,7 @@ setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
 
 # Load data
 data_2016 <- read.csv("data_2016.csv", sep=';') #field and parasite data
+env <- read.csv("Environment_R.csv", sep=',') #all environmental data
 env_av <- read.csv("Env_av.csv", sep=';') #environmental variables (average values)
 env_max <- read.csv("env_max.csv", sep=';') #environmental variables (max. values)
 spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
@@ -38,6 +39,30 @@ data <- cbind(data_2016, env_av_exp, env_max_exp, spavar_exp, spa.PCNM_exp)
 data$site <- as.factor(data$site)
 data$fish <- as.factor(data$fish)
 data$length <- as.numeric(data$length)
+
+data0 <- cbind(data_2016, env_exp[,-1], spavar_exp, spa.PCNM_exp)
+NAs <- 1>rowSums(is.na(data0[,c("weight", "length", "Sex")])) # identify fish with any of the following data missing: length, weight, sex
+table(NAs)
+data <- data0[NAs,] # remove fish with missing data
+data$site <- as.factor(data$site)
+data$fish <- as.factor(data$fish)
+data$length <- as.numeric(data$length)
+
+
+#### CALCULATE PARAMETERS ####
+names(data)
+avin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x[x >0], na.rm = T)}) 
+avab = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x, na.rm =T)})
+prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
+medin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) 
+
+avlength <- aggregate(data$length, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+avcondition <- aggregate(condition, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+
+avin[is.na(avin)] <- 0
+avab[is.na(avab)] <- 0
+prev[is.na(prev)] <- 0
+medin[is.na(medin)] <- 0
 
 #calculate parasite infection index
 PI_ecto <- 1:nrow(data)
@@ -85,6 +110,17 @@ summary(confactor)
 
 #add PI and condition index to data frame
 data <- cbind(data, confactor)
+
+avPI <- aggregate(data$PI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+
+
+
+dataX <- as.data.frame(cbind(avab[,-c(1)], avcondition, avlength, avPI, env[,c(4,7,8,9,11,13,14,15)], spavar[,2:3]))
+names(dataX)
+model <- psem(
+  lm(avPI ~ avcondition + avlength + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist, data=dataX),
+  lm(avcondition ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist, data=dataX), data=dataX)
+summary(model)
 
 model <- psem(
   lme(PI_ecto ~ Sex + confactor + sqrt(length) + sqrt(T_av) + sqrt(Temperature) + sqrt(O2_av) + sqrt(con_av) + sqrt(KjN_av) + sqrt(netcen) + sqrt(updist), random=~1|site, data=data),
