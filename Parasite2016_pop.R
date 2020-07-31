@@ -260,3 +260,112 @@ res_updist <- resid(lm(medin$gyro ~ avcondition + con_av + O2_sat_av + Cl_av + N
 plot(res_updist ~ spavar$updist, data=env)
 abline(lm(res_updist ~ spavar$updist, data=env))
 
+
+#### Gyrodactylus ####
+#### Average infection intensity ####
+plot(avin$gyro)
+
+model <- lm(avin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(lm(avin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+summary(model <- lm(avin$gyro ~ avlength + T_av + con_av + NO3_av, data=env))
+#plot(model)
+
+res_avlength <- resid(lm(avin$gyro ~ T_av + con_av + NO3_av, data=env))
+plot(res_avlength ~ avlength, data=env)
+abline(lm(res_avlength ~ avlength, data=env))
+
+res_T_av <- resid(lm(avin$gyro ~ avlength + con_av + NO3_av, data=env))
+plot(res_T_av ~ T_av, data=env)
+abline(lm(res_T_av ~ T_av, data=env))
+
+res_con_av <- resid(lm(avin$gyro ~ avlength + T_av + NO3_av, data=env))
+plot(res_con_av ~ con_av, data=env)
+abline(lm(res_con_av ~ con_av, data=env))
+
+res_NO3_av <- resid(lm(avin$gyro ~ avlength + T_av + con_av, data=env))
+plot(res_NO3_av ~ NO3_av, data=env)
+abline(lm(res_NO3_av ~ NO3_av, data=env))
+
+#### Trichodina ####
+#### Average abundance ####
+plot(avab$tricho)
+
+model <- lm(avab$tricho ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(lm(avab$tricho ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+summary(model <- lm(avab$gyro ~ Cl_av + COD_av + NO3_av, data=env))
+#plot(model)
+
+res_Cl_av <- resid(lm(avab$gyro ~ avlength + avcondition + con_av + COD_av + NO3_av + spavar$updist, data=env))
+plot(res_Cl_av ~ Cl_av, data=env)
+abline(lm(res_Cl_av ~ Cl_av, data=env))
+
+res_NO3_av <- resid(lm(avab$gyro ~ avlength + avcondition + con_av + Cl_av + COD_av + spavar$updist, data=env))
+plot(res_NO3_av ~ NO3_av, data=env)
+abline(lm(res_NO3_av ~ NO3_av, data=env))
+
+#### Gyrodactylus ####
+#### Prevalence ####
+plot(prev$gyro)
+
+model <- lm(prev$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(lm(prev$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+summary(model <- lm(prev$gyro ~ avcondition + con_av + Cl_av + COD_av + spavar$netcen, data=env))
+#plot(model)
+
+res_con_av <- resid(lm(prev$gyro ~ avcondition + Cl_av + COD_av + spavar$netcen, data=env))
+plot(res_con_av ~ con_av, data=env)
+abline(lm(res_con_av ~ con_av, data=env))
+
+res_Cl_av <- resid(lm(prev$gyro ~ avcondition + con_av + COD_av + spavar$netcen, data=env))
+plot(res_Cl_av ~ Cl_av, data=env)
+abline(lm(res_Cl_av ~ Cl_av, data=env))
+
+res_COD_av <- resid(lm(prev$gyro ~ avcondition + con_av + Cl_av + spavar$netcen, data=env))
+plot(res_COD_av ~ COD_av, data=env)
+abline(lm(res_COD_av ~ COD_av, data=env))
+
+#### Gyrodactylus ####
+#### Median infection intensity ####
+plot(medin$gyro)
+
+model <- lm(medin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(lm(medin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+summary(model <- lm(medin$gyro ~ avcondition + con_av + O2_sat_av + Cl_av + NH4_av + NO3_av + spavar$updist, data=env))
+#plot(model)
+
+res_con_av <- resid(lm(medin$gyro ~ avcondition + O2_sat_av + Cl_av + NH4_av + NO3_av + spavar$updist, data=env))
+plot(res_con_av ~ con_av, data=env)
+abline(lm(res_con_av ~ con_av, data=env))
+
+res_updist <- resid(lm(medin$gyro ~ avcondition + con_av + O2_sat_av + Cl_av + NH4_av + NO3_av, data=env))
+plot(res_updist ~ spavar$updist, data=env)
+abline(lm(res_updist ~ spavar$updist, data=env))
+

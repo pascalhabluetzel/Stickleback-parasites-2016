@@ -56,9 +56,11 @@ spa.PCNM <- as.data.frame(xy.PCoA$points[1:nrow(spa),1:3])
 
 cor(spavar$updist, spa.PCNM$V1)
 plot(spavar$updist, spa.PCNM$V1) #first MEM corresponds to distance from Demer-Dijle confluence
+cor(spavar$updist, spa.PCNM$V2)
+plot(spavar$updist, spa.PCNM$V2) #second MEM also corresponds to distance from Demer-Dijle confluence
 cor(spavar$netcen, spa.PCNM$V2)
 plot(spavar$netcen, spa.PCNM$V2) #second MEM corresponds to network centrality
-
+plot(spavar$updist, spavar$netcen)
 # remove correlated variables
 #write.csv(cor(cbind(env[,-1], spavar), use="pairwise.complete.obs"), file="collinearity.csv")
 # uncorrelated variables: T_max, T_av, T_min, con_min, COD_min, KjN_min, NH4_min, NO3_min, SM_min, T, con, COD, NO3, SM
@@ -72,11 +74,11 @@ plot(spavar$netcen, spa.PCNM$V2) #second MEM corresponds to network centrality
 # SM: all measures correlated -> keep only SM_av
 # Cl: all measures correlated -> keep only Cl_av
 # COD: all measures somewhat correlated -> keep only COD_av
-# temp: all measures somewhat correlated -> keep only T_av
+# temp: measures somewhat correlated -> keep only T_av
 # O2 and O2_sat: all measures somewhat correlated -> keep only O2_sat_av
 # speciesrichness is marginally related to network centrality (corr.coef. -0.60) -> keep only network centrality
 # updist and updist2 are correlated -> keep only updist
-# updist3 is not related to any other parameter -> keep
+# updist3 is not related to any other parameter -> keep?
 
 #write.csv(cor(cbind(env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av","SO4_av")], spavar), use="pairwise.complete.obs"), file="collinearity_selected.csv")
 
