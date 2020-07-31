@@ -2,6 +2,165 @@ library(vegan)
 library(ggvegan)
 library(ggthemes)
 library(raster)
+library(ggplot2)
+library(readr)
+library(ggplot2)
+library(gridExtra)
+library(plyr)
+library(vegan)
+library(afex)
+library(MASS)
+library(effects)
+library(lme4)
+library(car)
+library(corrplot)
+library(dplyr) # building data matrix
+library(glmmTMB) # GLMMs
+library(car) # ANOVA
+library(performance) # for checking model requirements
+library(buildmer) # evaluating and comparing different models (stepwise model selection)
+library(lme4) # GLMMs
+library(vegan) # for MEMs
+library(nlme) # for lme
+
+# Set working directory
+setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
+
+# Load data
+data_2016 <- read.csv("data_2016.csv", sep=';') #field and parasite data
+env <- read.csv("Environment_R.csv", sep=',') #all environmental data
+#env_av <- read.csv("Env_av.csv", sep=';') #environmental variables (average values)
+#env_max <- read.csv("env_max.csv", sep=';') #environmental variables (max. values)
+spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
+distance_matrix <- read.csv("distance_matrix.csv", sep=';') #spatial variables: distance matrix
+
+# Calculation of MEMs  ####
+KautoDist <- data.frame(cmdscale(distance_matrix),rownames(distance_matrix));colnames(distance_matrix)<- c("X1","X2","LocationID")
+spa <- KautoDist[,c(1,2)]
+library(raster)
+dist <- pointDistance(spa, allpairs = TRUE, lonlat = FALSE)
+spa.dist <- as.dist(dist)
+
+# Test and forward selectio of PCNM variables
+spanning <- spantree(spa.dist)
+dmin <- max(spanning$dist)
+spa.dist[spa.dist>dmin] <- 4*dmin
+xy.PCoA <- cmdscale(spa.dist,k=nrow(spa)-1,eig=TRUE)
+nb.ev<-length(which(xy.PCoA$eig > 0.0001))
+xy.PCoA$eig
+
+# Broken stick model
+ev <- xy.PCoA$eig
+ev <- subset(ev, xy.PCoA$eig > 0.0001)
+n <- length(ev)
+bsm <- data.frame(j=seq(1:n), p=0)
+bsm$p[1] <- 1/n
+for (i in 2:n) {
+  bsm$p[i] = bsm$p[i-1] + (1/(n+1-i))
+}
+bsm$p <- 100*bsm$p/n
+bsm
+par(mfrow=c(1,1))
+barplot(ev, main="Eigenvalues", col="bisque", las=2)
+abline(h=mean(ev), col="red")
+legend("topright", "Average eigenvalue", lwd=1, col=2, bty="n")
+barplot(t(cbind(100*ev/sum(ev), bsm$p[n:1])), beside=TRUE, main="% variance", col=c("bisque", 2), las=2)
+nb.ev <- length(which(xy.PCoA$eig > mean(ev)))
+
+spa.PCNM <- as.data.frame(xy.PCoA$points[1:nrow(spa),1:3])
+
+cor(spavar$updist, spa.PCNM$V1)
+plot(spavar$updist, spa.PCNM$V1) #first MEM corresponds to distance from Demer-Dijle confluence
+cor(spavar$netcen, spa.PCNM$V2)
+plot(spavar$netcen, spa.PCNM$V2) #second MEM corresponds to network centrality
+
+# remove correlated variables
+#write.csv(cor(cbind(env[,-1], spavar), use="pairwise.complete.obs"), file="collinearity.csv")
+# uncorrelated variables: T_max, T_av, T_min, con_min, COD_min, KjN_min, NH4_min, NO3_min, SM_min, T, con, COD, NO3, SM
+# correlation within variable type: pH (all 4 measures, keep pH_av), O2_av and O2_min (keep O2_av), O2_sat_av and O2_sat_min (keep 02_sat_av), Cl (all except Cl, which is correlated with Cl_max -> keep only Cl_av); COD_av and COD_max (keep COD_av); 
+# correlation between variable types: pH_av and con_av (keep con_av), O2_av and O2_sat_av (keep O2_sat_av), O2_max and O2_sat_max (keep O2_sat_max), O2 and O2_sat (keep O2_sat)
+# BOC, NO2 oPO4 -> keep only NO2_av
+# NO3 and Nt -> keep only NO3_av
+# KjN, NH4 and Pt -> keep only NH4_av
+# pH and conductivity -> keep only con_av
+# SO4: all measures correlated -> keep only SO4_av
+# SM: all measures correlated -> keep only SM_av
+# Cl: all measures correlated -> keep only Cl_av
+# COD: all measures somewhat correlated -> keep only COD_av
+# temp: all measures somewhat correlated -> keep only T_av
+# O2 and O2_sat: all measures somewhat correlated -> keep only O2_sat_av
+# speciesrichness is marginally related to network centrality (corr.coef. -0.60) -> keep only network centrality
+# updist and updist2 are correlated -> keep only updist
+# updist3 is not related to any other parameter -> keep
+
+#write.csv(cor(cbind(env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av","SO4_av")], spavar), use="pairwise.complete.obs"), file="collinearity_selected.csv")
+
+# make a new data frame by combinding parasite, environmental and space data
+env_exp <- env %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+#env_av_exp <- env_av %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+#env_max_exp <- env_max %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+spa.PCNM_exp <- spa.PCNM %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
+
+data0 <- cbind(data_2016, env_exp[,-1], spavar_exp, spa.PCNM_exp)
+NAs <- 1>rowSums(is.na(data0[,c("weight", "length", "Sex")])) # identify fish with any of the following data missing: length, weight, sex
+table(NAs)
+data <- data0[NAs,] # remove fish with missing data
+data$site <- as.factor(data$site)
+data$fish <- as.factor(data$fish)
+data$length <- as.numeric(data$length)
+
+
+#### CALCULATE PARAMETERS ####
+names(data)
+parsum = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x, na.rm = T)}) 
+prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
+
+# X^2 transformation of the species dataset ####
+spe.X2 <- vegdist(decostand(parsum[,-1],"chi.square"))
+spe.X2 <- decostand(parsum[,-1],"chi.square")
+spe.hel <- decostand(prev[,-1],"hellinger")
+
+env_select <- env[,c("T_max","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
+env_select <- env[,c("T","con","O2_sat","Cl","COD","NH4","NO3","NO2")]
+env_select <- env[,c("T_max","con_max","O2_sat_max","Cl_max","COD_max","NH4_max","NO3_max","NO2_max")]
+
+spe.rda <- dbrda(spe.X2 ~ T_max + con_max + O2_sat_max + Cl_max + COD_max + NH4_max + NO3_max + NO2_max, env_select)
+spe.rda <- dbrda(spe.hel ~ T_max + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+spe.rda <- dbrda(spe.hel ~ T_max + con_max + O2_sat_max + Cl_max + COD_max + NH4_max + NO3_max + NO2_max, env_select)
+spa.rda <- rda(spe.X2, env_select)
+plot(spe.rda, scaling = 1)
+summary(spe.rda)
+anova(spe.rda)
+anova.cca(spe.rda, step=1000);
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
+
+
+
+
+prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
+
+# X^2 transformation of the species dataset ####
+spe.hel <- decostand(prev[,-1],"hellinger")
+
+env_select <- env[,c("T_max","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
+
+spe.rda <- dbrda(spe.hel ~ T_max + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+plot(spe.rda, scaling = 1)
+summary(spe.rda)
+anova(spe.rda)
+anova.cca(spe.rda, step=1000);
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
+
+plot(env_select$T_max, prev$gyro)
+model <- lm(prev$gyro ~ T_max + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, data=env_select)
+summary(model)  
+
+res_T_max <- resid(lm(prev$gyro ~ con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, data=env_select))
+plot(res_T_max ~ env_select$T_max)
+abline(lm(res_T_max ~ env_select$T_max))
 
 # Set working directory
 setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
@@ -32,6 +191,8 @@ for(i in 1:length(levels(data2$site))){
 }
 
 env_select <- cbind(data2[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")], dummy_env)
+env_select <- cbind(data2[,c("T_av","con_av","NO3_av")], dummy_env)
+
 
 #### Environmental variables ####
 spe.rda <- rda(spe.hel, env_select)
@@ -63,6 +224,7 @@ RsquareAdj(spa.rda)$adj.r.squared;
 
 
 
+
 #setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Parasite2016_analysis') #edit_PH
 
 ab <- read.csv("abundance.csv", sep=";")
@@ -91,7 +253,7 @@ env_select <- (env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3
 spe.hel <- decostand(pre,"hellinger") #prevalence or abundance
 
 #### Environmental variables ####
-spe.rda <- rda(spe.hel, env_select) #edit_PH
+spe.rda <- rda(spe.hel, env_max)
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
 anova(spe.rda)

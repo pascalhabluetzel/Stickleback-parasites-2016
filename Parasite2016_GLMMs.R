@@ -60,7 +60,7 @@ cor(spavar$netcen, spa.PCNM$V2)
 plot(spavar$netcen, spa.PCNM$V2) #second MEM corresponds to network centrality
 
 # remove correlated variables
-write.csv(cor(cbind(env[,-1], spavar), use="pairwise.complete.obs"), file="collinearity.csv")
+#write.csv(cor(cbind(env[,-1], spavar), use="pairwise.complete.obs"), file="collinearity.csv")
 # uncorrelated variables: T_max, T_av, T_min, con_min, COD_min, KjN_min, NH4_min, NO3_min, SM_min, T, con, COD, NO3, SM
 # correlation within variable type: pH (all 4 measures, keep pH_av), O2_av and O2_min (keep O2_av), O2_sat_av and O2_sat_min (keep 02_sat_av), Cl (all except Cl, which is correlated with Cl_max -> keep only Cl_av); COD_av and COD_max (keep COD_av); 
 # correlation between variable types: pH_av and con_av (keep con_av), O2_av and O2_sat_av (keep O2_sat_av), O2_max and O2_sat_max (keep O2_sat_max), O2 and O2_sat (keep O2_sat)
@@ -78,7 +78,7 @@ write.csv(cor(cbind(env[,-1], spavar), use="pairwise.complete.obs"), file="colli
 # updist and updist2 are correlated -> keep only updist
 # updist3 is not related to any other parameter -> keep
 
-write.csv(cor(cbind(env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av","SO4_av")], spavar), use="pairwise.complete.obs"), file="collinearity_selected.csv")
+#write.csv(cor(cbind(env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av","SO4_av")], spavar), use="pairwise.complete.obs"), file="collinearity_selected.csv")
 
 # make a new data frame by combinding parasite, environmental and space data
 env_exp <- env %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
@@ -87,25 +87,72 @@ env_exp <- env %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 spa.PCNM_exp <- spa.PCNM %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 
-data <- cbind(data_2016, sqrt(env_exp[,-1]), sqrt(spavar_exp), spa.PCNM_exp)
+data0 <- cbind(data_2016, env_exp[,-1], spavar_exp, spa.PCNM_exp)
+NAs <- 1>rowSums(is.na(data0[,c("weight", "length", "Sex")])) # identify fish with any of the following data missing: length, weight, sex
+table(NAs)
+data <- data0[NAs,] # remove fish with missing data
 data$site <- as.factor(data$site)
 data$fish <- as.factor(data$fish)
 data$length <- as.numeric(data$length)
 
-# Effect of environment on host condition
-confactor <- resid(lm(data$weight~data$length + data$Sex), na.action=na.exclude)
-summary(confactor)
-select <- buildglmmTMB(confactor ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
+# Effect of environment (average) on host condition
+condition <- resid(lm(data$weight~data$length + data$Sex), na.action=na.exclude)
+summary(condition)
+select <- buildglmmTMB(condition ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
                               data=data,
                               include = ~ (1|site),
                               direction = c('order', 'forward'),
                               crit="LRT")
 select
-model <- lme(confactor ~ NH4 + netcen, random=~1|site, data=data, na.action=na.omit)
+model <- lme(condition ~ 1, random=~1|site, data=data, na.action=na.omit)
 summary(model)
 
-collinearity <- check_collinearity(model)
-plot(collinearity)
+# Effect of environment (maximum) on host condition
+condition <- resid(lm(data$weight~data$length + data$Sex), na.action=na.exclude)
+summary(condition)
+select <- buildglmmTMB(condition ~ T_max + con_max + O2_sat_max + Cl_max + COD_max + NH4_max + NO3_max + NO2_max + netcen + updist,
+                       data=data,
+                       include = ~ (1|site),
+                       direction = c('order', 'forward'),
+                       crit="LRT")
+select
+model <- lme(condition ~ T_max, random=~1|site, data=data, na.action=na.omit)
+summary(model)
+
+res_T_max <- resid(lme(condition ~ 1, random=~1|site, data=data, na.action=na.omit))
+plot(res_T_max ~ data$T_max)
+abline(lm(res_T_max ~ data$T_max))
+
+# Effect of environment (point value) on host condition
+condition <- resid(lm(data$weight~data$length + data$Sex), na.action=na.exclude)
+summary(condition)
+select <- buildglmmTMB(condition ~ T + con + O2_sat + Cl + COD + NH4 + NO3 + NO2 + netcen + updist,
+                       data=data,
+                       include = ~ (1|site),
+                       direction = c('order', 'forward'),
+                       crit="LRT")
+select
+model <- lme(condition ~ NO3, random=~1|site, data=data, na.action=na.omit)
+summary(model)
+
+res_NO3 <- resid(lme(condition ~ 1, random=~1|site, data=data, na.action=na.omit))
+plot(res_NO3 ~ data$NO3)
+abline(lm(res_NO3 ~ data$NO3))
+
+
+
+# Effect of environment (average) on host condition
+condition <- resid(lm(data$weight~data$length + data$Sex), na.action=na.exclude)
+summary(condition)
+select <- buildglmmTMB(condition ~ T + con + O2_sat + Cl + COD + NH4 + NO3 + NO2 + netcen + updist + site,
+                       data=data,
+                       include = ~ site,
+                       direction = c('order', 'forward'),
+                       crit="LRT")
+select
+model <- lme(condition ~ 1, random=~1|site, data=data, na.action=na.omit)
+summary(model)
+
 
 # Effect of environment on Parasite Index
 
@@ -142,25 +189,42 @@ for(j in 1:nrow(data)){
   + max(data$cistsintestine[j]/sd(data$cistsintestine, na.rm=T))*(data$cistsintestine[j]/sd(data$cistsintestine, na.rm=T))
 }
 
-select <- buildglmmTMB(PI ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
+select <- buildglmmTMB(PI ~ Sex + sqrt(length) + condition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
                        data=data,
                        include = ~ (1|site),
                        direction = c('order', 'forward'),
                        crit="LRT")
 select
-model <- lme(PI ~ Cl_av + T_av, random=~1|site, data=data, na.action=na.omit)
+model <- lme(PI ~ sqrt(length) + Cl_av + T_av, random=~1|site, data=data, na.action=na.omit)
 summary(model)
 
 collinearity <- check_collinearity(model)
 plot(collinearity)
 
-select <- buildglmmTMB(PI_ecto ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
+res_length <- resid(lme(PI ~ Cl_av + T_av, random=~1|site, data=data, na.action=na.omit))
+plot(res_length ~ data$length)
+abline(lm(res_length ~ data$length))
+
+res_Cl <- resid(lme(PI ~ length + T_av, random=~1|site, data=data, na.action=na.omit))
+plot(res_Cl ~ data$Cl_av)
+abline(lm(res_Cl ~ data$Cl_av))
+
+res_T <- resid(lme(PI ~ sqrt(length) + Cl_av, random=~1|site, data=data, na.action=na.omit))
+plot(res_T ~ data$T_av)
+abline(lm(res_T ~ data$T_av))
+
+collinearity <- check_collinearity(model)
+plot(collinearity)
+
+
+
+select <- buildglmmTMB(PI_ecto ~ Sex + sqrt(length) + condition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                        data=data,
                        include = ~ (1|site),
                        direction = c('order', 'forward'),
                        crit="LRT")
 select
-model <- lme(PI_ecto ~ confactor + Cl_av + con_av + NO3_av, random=~1|site, data=data, na.action=na.omit)
+model <- lme(PI_ecto ~ sqrt(length) + Cl_av + con_av + NO3_av, random=~1|site, data=data, na.action=na.omit)
 summary(model)
 
 collinearity <- check_collinearity(model)
@@ -185,7 +249,7 @@ plot(collinearity)
 # ZIGLMM (glmmTMB package)
 
 #Gyrodactylus
-fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
+fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + condition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                               data=data,
                               ziformula= ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist,
                               family=poisson,
@@ -193,7 +257,7 @@ fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con
                               crit="LRT")
 fit_zipoisson
 
-fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
+fit_zipoisson <- buildglmmTMB(gyro ~ Sex + sqrt(length) + condition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                               data=data,
                               ziformula= ~ 1 + (1|site),
                               family=poisson,
@@ -222,9 +286,8 @@ collinearity <- check_collinearity(fit_zipoisson)
 plot(collinearity)
 normality <- check_normality(fit_zipoisson, effects="random")
 
-
 #Trichodina (netcen and updist are not in the model because the model did not converge)
-fit_zipoisson <- buildglmmTMB(tricho ~ Sex + sqrt(length) + confactor + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
+fit_zipoisson <- buildglmmTMB(tricho ~ Sex + sqrt(length) + condition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                               data=data,
                               ziformula= ~ 1 + (1|site),
                               family=poisson,
@@ -233,7 +296,7 @@ fit_zipoisson <- buildglmmTMB(tricho ~ Sex + sqrt(length) + confactor + T_av + c
                               crit="LRT")
 fit_zipoisson
 
-fit_zipoisson <- glmmTMB(tricho ~ sqrt(length) + confactor + Cl_av + (1|ecto_screener) + (1|site),
+fit_zipoisson <- glmmTMB(tricho ~ sqrt(length) + condition + Sex + Cl_av + (1|ecto_screener) + (1|site),
                          data=data,
                          ziformula= ~ 1 + (1|site),
                          family=poisson)
@@ -243,6 +306,21 @@ Anova(fit_zipoisson)
 collinearity <- check_collinearity(fit_zipoisson)
 plot(collinearity)
 normality <- check_normality(fit_zipoisson, effects="random")
+
+model <- glmmTMB(tricho ~ condition + Sex + Cl_av + (1|ecto_screener) + (1|site),
+                         data=data,
+                         ziformula= ~ 1 + (1|site),
+                         family=poisson)
+res_length <- resid(model)
+plot(res_length ~ data$length)
+abline(lm(res_length ~ data$length))
+
+model <- glmmTMB(tricho ~ sqrt(length) + Cl_av + (1|ecto_screener) + (1|site),
+                 data=data,
+                 ziformula= ~ 1 + (1|site),
+                 family=poisson)
+res_sex <- resid(model)
+boxplot(res_sex ~ data$Sex)
 
 
 #Glugea
