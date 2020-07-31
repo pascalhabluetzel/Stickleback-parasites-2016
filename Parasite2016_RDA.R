@@ -1,27 +1,16 @@
-library(vegan)
 library(ggvegan)
 library(ggthemes)
 library(raster)
 library(ggplot2)
 library(readr)
-library(ggplot2)
 library(gridExtra)
 library(plyr)
-library(vegan)
 library(afex)
 library(MASS)
-library(effects)
-library(lme4)
-library(car)
-library(corrplot)
 library(dplyr) # building data matrix
 library(glmmTMB) # GLMMs
 library(car) # ANOVA
-library(performance) # for checking model requirements
-library(buildmer) # evaluating and comparing different models (stepwise model selection)
-library(lme4) # GLMMs
 library(vegan) # for MEMs
-library(nlme) # for lme
 
 # Set working directory
 setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
@@ -121,14 +110,43 @@ prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >
 # Hellinger transformation of the species dataset ####
 spe.hel <- vegdist(decostand(avin[,-1],"hellinger"), method="euc")
 
-braycurtis <- vegdist(cbind(data[,c(23:25,27:33)],rep(1,nrow(data))), method="bray", na.rm=T)
+braycurtis <- vegdist(decostand(cbind(data[,c(23:25,27:33)],rep(1,nrow(data))), na.rm=T, method="hellinger"), method="bray", na.rm=T)
 meandist <- meandist(braycurtis, data$site)
 
 env_select <- env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
 #env_select <- env[,c("T","con","O2_sat","Cl","COD","NH4","NO3","NO2")]
 #env_select <- env[,c("T_max","con_max","O2_sat_max","Cl_max","COD_max","NH4_max","NO3_max","NO2_max")]
 
+plot(env_select$NO2_av)
+
 spe.rda <- dbrda(meandist ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+
+plot(spe.rda, scaling = 1)
+summary(spe.rda)
+anova(spe.rda)
+anova(spe.rda, by="term")
+anova.cca(spe.rda, step=1000);
+anova.cca(spe.rda, step=1000, by="term");
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
+
+mod0 <- dbrda(meandist ~ 1, env_select)  # Model with intercept only  #edit_PH
+mod1 <- dbrda(meandist ~ ., env_select)  # Model with all explanatory variables  #edit_PH
+step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
+step.res$anova  # Summary table
+
+mod0 <- dbrda(meandist[-c(10),-c(10)] ~ 1, env_select[-c(10),])  # Model with intercept only  #edit_PH
+mod1 <- dbrda(meandist[-c(10),-c(10)] ~ ., env_select[-c(10),])  # Model with all explanatory variables  #edit_PH
+step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
+step.res$anova  # Summary table
+
+g <- autoplot(spe.rda, arrows = FALSE, geom = c("point", "text")) + geom_text(size = 10) + theme_few() + xlim(c(-0.7,1.2)) + scale_color_manual(values = c("black","#009999","#006666"))
+g + geom_hline(yintercept = 0, linetype="dotted") + geom_vline(xintercept = 0, linetype="dotted")
+ggsave("environmentspecies.png", units="in", width=10, height=10, dpi=300)
+
+
+spe.rda <- dbrda(meandist ~ spavar$netcen + spavar$updist, env_select)
+
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
 anova(spe.rda)
@@ -137,6 +155,17 @@ RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
 
+
+#variance partitioning
+spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3],spa.PCNM), env_select)
+spe.varpart1 <- varpart(meandist, cbind(spa.PCNM[,1:2]), env_select)
+spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3]), env_select)
+par(mfrow=c(1,2))
+showvarparts(2)
+plot(spe.varpart1,digits=2)
+spe.varpart1
+
+#cor(cbind(spavar[,2:3],spa.PCNM))
 
 
 plot(avab[,2], env_select$T_max)
@@ -177,14 +206,17 @@ spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality
 env_exp <- env %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 
-data <- cbind(data_2016, sqrt(env_exp[,-1]), sqrt(spavar_exp))
+data <- cbind(data_2016, env_exp[,-1], spavar_exp)
 data$site <- as.factor(data$site)
 data$fish <- as.factor(data$fish)
 data$length <- as.numeric(data$length)
 
+data0 <- cbind(data_2016, env_exp[,-1], spavar_exp, spa.PCNM_exp)
+NAs <- 1>rowSums(is.na(data0[,c(23:25,27:33)]))
+table(NAs)
+data <- data0[NAs,] # remove fish with missing data
 
-data2 <- data[complete.cases(data[,c(23,24,25,27,28,29,30,31,32,33)]),]
-spe.hel <- vegdist(decostand(data2[,c(23,24,25,27,28,29,30,31,32,33)],"hellinger"), "euc")
+spe.hel <- vegdist(decostand(cbind(data[,c(23:25,27:33)],rep(1,nrow(data))),"hellinger", na.rm=T), "bray", na.rm=T)
 
 hist(as.matrix(data2[,c(23,24,25,27,28,29,30,31,32,33)]), breaks=2000)
 
@@ -193,13 +225,11 @@ for(i in 1:length(levels(data2$site))){
   dummy_env[,i] <- ifelse(data2$site == levels(data2$site)[i], 1, 0)
 }
 
-env_select <- cbind(data2[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")], dummy_env)
-env_select <- cbind(data2[,c("T_av","con_av","NO3_av")], dummy_env)
-
+env_select <- cbind(data[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")])
 
 #### Environmental variables ####
-spe.rda <- rda(spe.hel, env_select)
-spe.rda <- dbrda(spe.hel ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + '1', env_select)
+#spe.rda <- rda(spe.hel, env_select)
+spe.rda <- dbrda(spe.hel ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
 anova(spe.rda)
@@ -207,8 +237,9 @@ anova.cca(spe.rda, step=1000);
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
+
 # Spatial variables  ####
-spa.rda <- rda(spe.hel, cbind(data2$netcen, data2$updist, dummy_env))
+spa.rda <- dbrda(spe.hel ~ data$netcen + data$updist)
 summary(spa.rda)
 plot(spa.rda)
 anova(spa.rda)
@@ -216,14 +247,12 @@ anova.cca(spa.rda, step=1000)
 RsquareAdj(spa.rda)$r.squared;
 RsquareAdj(spa.rda)$adj.r.squared;
 
-# Spatial variables  ####
-spa.rda <- rda(spe.hel, cbind(data2$netcen, data2$updist))
-summary(spa.rda)
-plot(spa.rda)
-anova(spa.rda)
-anova.cca(spa.rda, step=1000)
-RsquareAdj(spa.rda)$r.squared;
-RsquareAdj(spa.rda)$adj.r.squared;
+#variance partitioning
+spe.varpart1 <- varpart(spe.hel, cbind(data$netcen + data$updist), env_select)
+par(mfrow=c(1,2))
+showvarparts(2)
+plot(spe.varpart1,digits=2)
+spe.varpart1
 
 
 
