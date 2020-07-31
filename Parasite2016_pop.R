@@ -132,6 +132,26 @@ medin[is.na(medin)] <- 0
 # 7. Check for testing requirements
 # 8. Plot of residuals
 
+#### Condition ####
+plot(avcondition)
+
+model <- lm(avcondition ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(lm(avcondition ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+summary(model <- lm(avcondition ~ con_av + NO2_av + spavar$netcen, data=env))
+#plot(model)
+
+res_con_av <- resid(lm(avcondition ~ NO2_av + spavar$netcen, data=env))
+plot(res_con_av ~ con_av, data=env)
+abline(lm(res_con_av ~ con_av, data=env))
+
+
 #### Gyrodactylus ####
 #### Average infection intensity ####
 plot(avin$gyro)
