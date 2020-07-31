@@ -114,21 +114,21 @@ data$length <- as.numeric(data$length)
 #### CALCULATE PARAMETERS ####
 names(data)
 parsum = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x, na.rm = T)}) 
+avin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x[x >0], na.rm = T)}); avin[is.na(avin)] <- 0
+avab = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x, na.rm =T)})
 prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
 
-# X^2 transformation of the species dataset ####
-spe.X2 <- vegdist(decostand(parsum[,-1],"chi.square"))
-spe.X2 <- decostand(parsum[,-1],"chi.square")
-spe.hel <- decostand(prev[,-1],"hellinger")
+# Hellinger transformation of the species dataset ####
+spe.hel <- vegdist(decostand(avin[,-1],"hellinger"), method="euc")
 
-env_select <- env[,c("T_max","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
-env_select <- env[,c("T","con","O2_sat","Cl","COD","NH4","NO3","NO2")]
-env_select <- env[,c("T_max","con_max","O2_sat_max","Cl_max","COD_max","NH4_max","NO3_max","NO2_max")]
+braycurtis <- vegdist(cbind(data[,c(23:25,27:33)],rep(1,nrow(data))), method="bray", na.rm=T)
+meandist <- meandist(braycurtis, data$site)
 
-spe.rda <- dbrda(spe.X2 ~ T_max + con_max + O2_sat_max + Cl_max + COD_max + NH4_max + NO3_max + NO2_max, env_select)
-spe.rda <- dbrda(spe.hel ~ T_max + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
-spe.rda <- dbrda(spe.hel ~ T_max + con_max + O2_sat_max + Cl_max + COD_max + NH4_max + NO3_max + NO2_max, env_select)
-spa.rda <- rda(spe.X2, env_select)
+env_select <- env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
+#env_select <- env[,c("T","con","O2_sat","Cl","COD","NH4","NO3","NO2")]
+#env_select <- env[,c("T_max","con_max","O2_sat_max","Cl_max","COD_max","NH4_max","NO3_max","NO2_max")]
+
+spe.rda <- dbrda(meandist ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
 anova(spe.rda)
@@ -138,6 +138,9 @@ RsquareAdj(spe.rda)$r.squared
 
 
 
+
+plot(avab[,2], env_select$T_max)
+avin
 
 prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
 
