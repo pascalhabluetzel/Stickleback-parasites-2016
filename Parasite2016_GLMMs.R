@@ -289,7 +289,7 @@ plot(collinearity)
 normality <- check_normality(fit_zipoisson, effects="random")
 
 #Trichodina (netcen and updist are not in the model because the model did not converge)
-fit_zipoisson <- buildglmmTMB(tricho ~ Sex + sqrt(length) + condition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
+fit_zipoisson <- buildglmmTMB(tricho ~ Sex + length + condition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist + (1|ecto_screener),
                               data=data,
                               ziformula= ~ 1 + (1|site),
                               family=poisson,
@@ -298,7 +298,7 @@ fit_zipoisson <- buildglmmTMB(tricho ~ Sex + sqrt(length) + condition + T_av + c
                               crit="LRT")
 fit_zipoisson
 
-fit_zipoisson <- glmmTMB(tricho ~ sqrt(length) + condition + Sex + Cl_av + (1|ecto_screener) + (1|site),
+fit_zipoisson <- glmmTMB(tricho ~ Sex + length + condition + Cl_av + (1|ecto_screener) + (1|site),
                          data=data,
                          ziformula= ~ 1 + (1|site),
                          family=poisson)
