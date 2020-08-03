@@ -120,6 +120,7 @@ env_select <- env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_
 plot(env_select$NO2_av)
 
 spe.rda <- dbrda(meandist ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+#spe.rda <- dbrda(meandist ~ Cl_av, env_select)
 
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
@@ -135,6 +136,7 @@ mod1 <- dbrda(meandist ~ ., env_select)  # Model with all explanatory variables 
 step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
 step.res$anova  # Summary table
 
+# Check whether exclusion of site 12 changes results
 mod0 <- dbrda(meandist[-c(10),-c(10)] ~ 1, env_select[-c(10),])  # Model with intercept only  #edit_PH
 mod1 <- dbrda(meandist[-c(10),-c(10)] ~ ., env_select[-c(10),])  # Model with all explanatory variables  #edit_PH
 step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
@@ -145,7 +147,7 @@ g + geom_hline(yintercept = 0, linetype="dotted") + geom_vline(xintercept = 0, l
 ggsave("environmentspecies.png", units="in", width=10, height=10, dpi=300)
 
 
-spe.rda <- dbrda(meandist ~ spavar$netcen + spavar$updist, env_select)
+spe.rda <- dbrda(meandist ~ spavar$netcen + spavar$updist)
 
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
@@ -157,7 +159,7 @@ RsquareAdj(spe.rda)$r.squared
 
 
 #variance partitioning
-spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3],spa.PCNM), env_select)
+spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3],spa.PCNM), env_select$Cl_av)
 spe.varpart1 <- varpart(meandist, cbind(spa.PCNM[,1:2]), env_select)
 spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3]), env_select)
 par(mfrow=c(1,2))
@@ -173,7 +175,7 @@ avin
 
 prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
 
-# X^2 transformation of the species dataset ####
+# Hellinger transformation of the species dataset ####
 spe.hel <- decostand(prev[,-1],"hellinger")
 
 env_select <- env[,c("T_max","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
