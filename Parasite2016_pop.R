@@ -123,14 +123,17 @@ prev[is.na(prev)] <- 0
 medin[is.na(medin)] <- 0
 
 # General structure of the tests for individual parasites:
-# 1. Four measures: average infection intensity, average abundance, prevalence and median infection intensity
-# 2. Five parasite taxa: Gyrodactylus, Trichodina, Glugea, Contracaecum, Anguillicola
-# 3. Plot of raw data (value vs. site)
-# 4. Model with all explanatory variables
-# 5. Check for testing requirements
-# 6. Model selection
-# 7. Check for testing requirements
-# 8. Plot of residuals
+# 1. Models for environmental effect on host condition and length
+# 2. Four measures at populatin level: average abundance, prevalence and median infection intensity
+# 3. Three parasite indices: PI all parasites, PI for ectoparasites and PI for endoparasites 
+# 4. Five parasite taxa: Gyrodactylus, Trichodina, Glugea, Contracaecum, Anguillicola
+# 5. For each response variable:
+#    6. Plot of raw data (value vs. site)
+#    7. Model with all explanatory variables
+#    8. Check for testing requirements
+#    9. Model selection
+#    10. Check for testing requirements
+#    11. Plot of residuals
 
 #### Condition ####
 plot(avcondition)
@@ -152,6 +155,34 @@ plot(res_con_av ~ con_av, data=env)
 abline(lm(res_con_av ~ con_av, data=env))
 
 
+#### Length ####
+plot(avlength)
+
+model <- lm(avlength ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(lm(avlength ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+# Check the effect of the outlier (location 12)
+step.model <- stepAIC(lm(avlength[-c(10)] ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-c(10)] + spavar$updist[-c(10)], data=env[-c(10),]),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+# When location 12 is excluded, the effect of Cl disappears. Do not use Cl in the final model.
+
+summary(model <- lm(avlength ~ con_av + NO3_av + spavar$netcen, data=env))
+#plot(model)
+
+res_netcen <- resid(lm(avlength ~ con_av + NO3_av, data=env))
+plot(res_netcen ~ spavar$netcen)
+abline(lm(res_netcen ~ spavar$netcen))
+
+
 #### Gyrodactylus ####
 #### Average infection intensity ####
 plot(avin$gyro)
@@ -183,6 +214,7 @@ abline(lm(res_con_av ~ con_av, data=env))
 res_NO3_av <- resid(lm(avin$gyro ~ avlength + T_av + con_av, data=env))
 plot(res_NO3_av ~ NO3_av, data=env)
 abline(lm(res_NO3_av ~ NO3_av, data=env))
+
 
 #### Gyrodactylus ####
 #### Average abundance ####
@@ -197,16 +229,16 @@ step.model <- stepAIC(lm(avab$gyro ~ avlength + avcondition + T_av + con_av + O2
                       trace = FALSE)
 step.model
 
-summary(model <- lm(avab$gyro ~ avlength + avcondition + con_av + Cl_av + COD_av + NO3_av + spavar$updist, data=env))
+# Check the effect of the outlier (location 12)
+step.model <- stepAIC(lm(avab$gyro[-c(10)] ~ avlength[-c(10)] + avcondition[-c(10)] + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-c(10)] + spavar$updist[-c(10)], data=env[-c(10),]),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+# The exclusion of location 12 does change the outcome significantly. Use only the model that was suggested upon the exclusion of location 12.
+summary(model <- lm(avab$gyro ~ avlength, data=env))
 #plot(model)
 
-res_Cl_av <- resid(lm(avab$gyro ~ avlength + avcondition + con_av + COD_av + NO3_av + spavar$updist, data=env))
-plot(res_Cl_av ~ Cl_av, data=env)
-abline(lm(res_Cl_av ~ Cl_av, data=env))
-
-res_NO3_av <- resid(lm(avab$gyro ~ avlength + avcondition + con_av + Cl_av + COD_av + spavar$updist, data=env))
-plot(res_NO3_av ~ NO3_av, data=env)
-abline(lm(res_NO3_av ~ NO3_av, data=env))
 
 #### Gyrodactylus ####
 #### Prevalence ####
@@ -221,18 +253,25 @@ step.model <- stepAIC(lm(prev$gyro ~ avlength + avcondition + T_av + con_av + O2
                       trace = FALSE)
 step.model
 
-summary(model <- lm(prev$gyro ~ avcondition + con_av + Cl_av + COD_av + spavar$netcen, data=env))
+# Check the effect of the exclusion of location 12
+step.model <- stepAIC(lm(prev$gyro[-c(10)] ~ avlength[-c(10)] + avcondition[-c(10)] + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-c(10)] + spavar$updist[-c(10)], data=env[-c(10),]),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+
+summary(model <- lm(prev$gyro ~ avcondition + con_av + COD_av, data=env))
 #plot(model)
 
-res_con_av <- resid(lm(prev$gyro ~ avcondition + Cl_av + COD_av + spavar$netcen, data=env))
+res_avcondition <- resid(lm(prev$gyro ~ con_av + COD_av, data=env))
+plot(res_avcondition ~ avcondition, data=env)
+abline(lm(res_avcondition ~ avcondition, data=env))
+
+res_con_av <- resid(lm(prev$gyro ~ avcondition + COD_av, data=env))
 plot(res_con_av ~ con_av, data=env)
 abline(lm(res_con_av ~ con_av, data=env))
 
-res_Cl_av <- resid(lm(prev$gyro ~ avcondition + con_av + COD_av + spavar$netcen, data=env))
-plot(res_Cl_av ~ Cl_av, data=env)
-abline(lm(res_Cl_av ~ Cl_av, data=env))
-
-res_COD_av <- resid(lm(prev$gyro ~ avcondition + con_av + Cl_av + spavar$netcen, data=env))
+res_COD_av <- resid(lm(prev$gyro ~ avcondition + con_av, data=env))
 plot(res_COD_av ~ COD_av, data=env)
 abline(lm(res_COD_av ~ COD_av, data=env))
 
@@ -249,49 +288,15 @@ step.model <- stepAIC(lm(medin$gyro ~ avlength + avcondition + T_av + con_av + O
                       trace = FALSE)
 step.model
 
-summary(model <- lm(medin$gyro ~ avcondition + con_av + O2_sat_av + Cl_av + NH4_av + NO3_av + spavar$updist, data=env))
-#plot(model)
-
-res_con_av <- resid(lm(medin$gyro ~ avcondition + O2_sat_av + Cl_av + NH4_av + NO3_av + spavar$updist, data=env))
-plot(res_con_av ~ con_av, data=env)
-abline(lm(res_con_av ~ con_av, data=env))
-
-res_updist <- resid(lm(medin$gyro ~ avcondition + con_av + O2_sat_av + Cl_av + NH4_av + NO3_av, data=env))
-plot(res_updist ~ spavar$updist, data=env)
-abline(lm(res_updist ~ spavar$updist, data=env))
-
-
-#### Gyrodactylus ####
-#### Average infection intensity ####
-plot(avin$gyro)
-
-model <- lm(avin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
-summary(model)
-#plot(model)                      
-
-step.model <- stepAIC(lm(avin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+# Check the effect of the exclusion of location 12
+step.model <- stepAIC(lm(medin$gyro[-c(10)] ~ avlength[-c(10)] + avcondition[-c(10)] + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-c(10)] + spavar$updist[-c(10)], data=env[-c(10),]),
                       direction = "both", 
                       trace = FALSE)
 step.model
 
-summary(model <- lm(avin$gyro ~ avlength + T_av + con_av + NO3_av, data=env))
+summary(model <- lm(medin$gyro ~ T_av, data=env))
 #plot(model)
 
-res_avlength <- resid(lm(avin$gyro ~ T_av + con_av + NO3_av, data=env))
-plot(res_avlength ~ avlength, data=env)
-abline(lm(res_avlength ~ avlength, data=env))
-
-res_T_av <- resid(lm(avin$gyro ~ avlength + con_av + NO3_av, data=env))
-plot(res_T_av ~ T_av, data=env)
-abline(lm(res_T_av ~ T_av, data=env))
-
-res_con_av <- resid(lm(avin$gyro ~ avlength + T_av + NO3_av, data=env))
-plot(res_con_av ~ con_av, data=env)
-abline(lm(res_con_av ~ con_av, data=env))
-
-res_NO3_av <- resid(lm(avin$gyro ~ avlength + T_av + con_av, data=env))
-plot(res_NO3_av ~ NO3_av, data=env)
-abline(lm(res_NO3_av ~ NO3_av, data=env))
 
 #### Trichodina ####
 #### Average abundance ####
@@ -306,66 +311,168 @@ step.model <- stepAIC(lm(avab$tricho ~ avlength + avcondition + T_av + con_av + 
                       trace = FALSE)
 step.model
 
-summary(model <- lm(avab$gyro ~ Cl_av + COD_av + NO3_av, data=env))
-#plot(model)
-
-res_Cl_av <- resid(lm(avab$gyro ~ avlength + avcondition + con_av + COD_av + NO3_av + spavar$updist, data=env))
-plot(res_Cl_av ~ Cl_av, data=env)
-abline(lm(res_Cl_av ~ Cl_av, data=env))
-
-res_NO3_av <- resid(lm(avab$gyro ~ avlength + avcondition + con_av + Cl_av + COD_av + spavar$updist, data=env))
-plot(res_NO3_av ~ NO3_av, data=env)
-abline(lm(res_NO3_av ~ NO3_av, data=env))
-
-#### Gyrodactylus ####
-#### Prevalence ####
-plot(prev$gyro)
-
-model <- lm(prev$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
-summary(model)
-#plot(model)                      
-
-step.model <- stepAIC(lm(prev$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+# Check the effect of location 12
+step.model <- stepAIC(lm(avab$tricho[-10] ~ avlength[-10] + avcondition[-10] + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-10] + spavar$updist[-10], data=env[-10,]),
                       direction = "both", 
                       trace = FALSE)
 step.model
 
-summary(model <- lm(prev$gyro ~ avcondition + con_av + Cl_av + COD_av + spavar$netcen, data=env))
+summary(model <- lm(avab$tricho ~ con_av + COD_av, data=env))
+#plot(model)
+summary(model <- lm(avab$tricho[-10] ~ con_av + COD_av, data=env[-10,]))
+
+#### Trichodina ####
+#### Prevalence ####
+plot(prev$tricho)
+
+model <- lm(prev$tricho ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(lm(prev$tricho ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+# Check the effect of removal of location 12
+step.model <- stepAIC(lm(prev$tricho[-10] ~ avlength[-10] + avcondition[-10] + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-10] + spavar$updist[-10], data=env[-10,]),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+# No difference, continue with all sites
+
+summary(model <- lm(prev$tricho ~ T_av + con_av + O2_sat_av + COD_av + NH4_av + spavar$updist, data=env))
 #plot(model)
 
-res_con_av <- resid(lm(prev$gyro ~ avcondition + Cl_av + COD_av + spavar$netcen, data=env))
+res_con_av <- resid(lm(prev$tricho ~ T_av + O2_sat_av + COD_av + NH4_av + spavar$updist, data=env))
 plot(res_con_av ~ con_av, data=env)
 abline(lm(res_con_av ~ con_av, data=env))
 
-res_Cl_av <- resid(lm(prev$gyro ~ avcondition + con_av + COD_av + spavar$netcen, data=env))
-plot(res_Cl_av ~ Cl_av, data=env)
-abline(lm(res_Cl_av ~ Cl_av, data=env))
-
-res_COD_av <- resid(lm(prev$gyro ~ avcondition + con_av + Cl_av + spavar$netcen, data=env))
+res_COD_av <- resid(lm(prev$tricho ~ T_av + con_av + O2_sat_av + NH4_av + spavar$updist, data=env))
 plot(res_COD_av ~ COD_av, data=env)
 abline(lm(res_COD_av ~ COD_av, data=env))
 
-#### Gyrodactylus ####
+res_NH4_av <- resid(lm(prev$tricho ~ T_av + con_av + O2_sat_av + COD_av + spavar$updist, data=env))
+plot(res_NH4_av ~ NH4_av, data=env)
+abline(lm(res_NH4_av ~ NH4_av, data=env))
+
+res_updist <- resid(lm(prev$tricho ~ T_av + con_av + O2_sat_av + COD_av + NH4_av, data=env))
+plot(res_updist ~ spavar$updist, data=env)
+abline(lm(res_updist ~ spavar$updist, data=env))
+
+#### Trichodina ####
 #### Median infection intensity ####
-plot(medin$gyro)
+plot(medin$trich)
 
 model <- lm(medin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env)
 summary(model)
 #plot(model)                      
 
-step.model <- stepAIC(lm(medin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+step.model <- stepAIC(lm(medin$tricho ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
                       direction = "both", 
                       trace = FALSE)
 step.model
 
-summary(model <- lm(medin$gyro ~ avcondition + con_av + O2_sat_av + Cl_av + NH4_av + NO3_av + spavar$updist, data=env))
+# Check the effect of removal of location 12
+step.model <- stepAIC(lm(medin$tricho[-10] ~ avlength[-10] + avcondition[-10] + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-10] + spavar$updist[-10], data=env[-10,]),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+# Use only variables from the model selection without location 12
+
+summary(model <- lm(medin$tricho ~ con_av + COD_av + NH4_av, data=env))
 #plot(model)
 
-res_con_av <- resid(lm(medin$gyro ~ avcondition + O2_sat_av + Cl_av + NH4_av + NO3_av + spavar$updist, data=env))
+summary(model <- lm(medin$tricho[-10] ~ con_av + COD_av + NH4_av, data=env[-10,]))
+#plot(model)
+
+# Only effect of conductivity remains significant after removal of location 12
+
+res_con_av <- resid(lm(medin$tricho ~ COD_av + NH4_av, data=env))
 plot(res_con_av ~ con_av, data=env)
 abline(lm(res_con_av ~ con_av, data=env))
 
-res_updist <- resid(lm(medin$gyro ~ avcondition + con_av + O2_sat_av + Cl_av + NH4_av + NO3_av, data=env))
-plot(res_updist ~ spavar$updist, data=env)
-abline(lm(res_updist ~ spavar$updist, data=env))
 
+#### Glugea ####
+plot(avab$glugea)
+
+glugea_pa <- ifelse(avab$glugea>0, 1, 0)
+
+model <- glm(glugea_pa ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env, family="binomial")
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(glm(glugea_pa ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env, family="binomial"),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+model <- glm(glugea_pa ~ con_av + spavar$updist, data=env, family="binomial")
+summary(model)
+
+# plotting residual effects makes little sense with binomial data -> use model predictions
+plot(as.factor(glugea_pa), env$con_av)
+plot(as.factor(glugea_pa), spavar$updist)
+
+
+#### Contracaecum ####
+plot(avab$contra)
+
+contra_pa <- ifelse(avab$contra>0, 1, 0)
+
+model <- glm(contra_pa ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env, family="binomial")
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(glm(contra_pa ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env, family="binomial"),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+model <- glm(contra_pa ~ avlength + O2_sat_av + Cl_av + NO3_av + NO2_av, data=env, family="binomial")
+summary(model)
+
+# plotting residual effects makes little sense with binomial data -> use model predictions
+plot(as.factor(contra_pa), avlength)
+plot(as.factor(contra_pa), env$O2_sat_av)
+
+
+#### Anguillicola ####
+plot(avab$angui)
+
+angui_pa <- ifelse(avab$angui>0, 1, 0)
+
+model <- glm(angui_pa ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env, family="binomial")
+summary(model)
+#plot(model)                      
+
+step.model <- stepAIC(glm(angui_pa ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env, family="binomial"),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+model <- glm(angui_pa ~ avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av, data=env, family="binomial")
+summary(model)
+
+# plotting residual effects makes little sense with binomial data -> use model predictions
+plot(as.factor(angui_pa), env$T_av)
+
+
+
+library(piecewiseSEM)
+
+SEM <- as.data.frame(cbind(prev$gyro, avcondition, avlength, env$T_av, env$con_av, env$COD_av, env$NO3_av))
+colnames(SEM) <- c("gyro", "avcondition", "avlength", "T_av", "con_av", "COD_av", "NO3_av")
+model <- psem(
+  lm(gyro ~ avcondition + avlength + T_av + con_av + COD_av + NO3_av, data=SEM),
+  lm(avcondition ~ con_av, data=SEM)
+)
+summary(model)
+
+model <- psem(
+  lm(gyro ~ avcondition + avlength + T_av + con_av + COD_av + NO3_av, data=SEM),
+  lm(avcondition ~ con_av, data=SEM)
+)
+summary(model)

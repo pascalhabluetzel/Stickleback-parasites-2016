@@ -106,7 +106,8 @@ select <- buildglmmTMB(condition ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + 
                               direction = c('order', 'forward'),
                               crit="LRT")
 select
-model <- lme(condition ~ 1, random=~1|site, data=data, na.action=na.omit)
+
+model <- lme(condition ~ con_av, random=~1|site, data=data, na.action=na.omit)
 summary(model)
 
 # Effect of environment (maximum) on host condition
