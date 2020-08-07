@@ -30,6 +30,12 @@ env <- read.csv("Environment_R.csv", sep=',') #all environmental data
 spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
 distance_matrix <- read.csv("distance_matrix.csv", sep=';') #spatial variables: distance matrix
 
+#######################################
+####같같같같같같같같같같같같같같같�####
+#### Part I: Calculating variables #### (MEMs, parasitation indices, parasite component communities, selection of explanatory variables, etc.)
+####같같같같같같같같같같같같같같같�####
+#######################################
+
 # Calculation of MEMs  ####
 KautoDist <- data.frame(cmdscale(distance_matrix),rownames(distance_matrix));colnames(distance_matrix)<- c("X1","X2","LocationID")
 spa <- KautoDist[,c(1,2)]
@@ -122,6 +128,13 @@ avab[is.na(avab)] <- 0
 prev[is.na(prev)] <- 0
 medin[is.na(medin)] <- 0
 
+
+########################################
+####같같같같같같같같같같같같같같같같####
+#### Part II: Calculating variables ####
+####같같같같같같같같같같같같같같같같####
+########################################
+
 # General structure of the tests for individual parasites:
 # 1. Models for environmental effect on host condition and length
 # 2. Four measures at populatin level: average abundance, prevalence and median infection intensity
@@ -148,12 +161,45 @@ step.model <- stepAIC(lm(avcondition ~ T_av + con_av + O2_sat_av + Cl_av + COD_a
 step.model
 
 summary(model <- lm(avcondition ~ con_av + NO2_av + spavar$netcen, data=env))
+summary(model <- lm(avcondition[-2] ~ con_av + NO2_av + spavar$netcen[-2], data=env[-2,]))
+#plot(model)
+#Removing site 2 changes outcome of model -> rerun without location 2
+
+step.model <- stepAIC(lm(avcondition[-2] ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-2] + spavar$updist[-2], data=env[-2,]),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+summary(model <- lm(avcondition[-2]^3 ~ O2_sat_av + NH4_av + NO2_av + spavar$updist[-2], data=env[-2,]))
 #plot(model)
 
-res_con_av <- resid(lm(avcondition ~ NO2_av + spavar$netcen, data=env))
-plot(res_con_av ~ con_av, data=env)
-abline(lm(res_con_av ~ con_av, data=env))
+#model improved, reiterate selection with new approach
 
+step.model <- stepAIC(lm(avcondition[-2]^3 ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-2] + spavar$updist[-2], data=env[-2,]),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+summary(model <- lm(avcondition[-c(2,26,34)]^3 ~ O2_sat_av + NH4_av + NO2_av + spavar$netcen[-c(2,26,34)] + spavar$updist[-c(2,26,34)], data=env[-c(2,26,34),]))
+plot(model)
+#Removing site 2 changes outcome of model -> rerun without location 2
+
+
+res_O2_sat_av <- resid(lm(avcondition[-2] ~ NH4_av + NO2_av + spavar$netcen[-2] + spavar$updist[-2], data=env[-2,]))
+plot(res_O2_sat_av ~ O2_sat_av, data=env[-2,])
+abline(lm(res_O2_sat_av ~ O2_sat_av, data=env[-2,]))
+
+res_NH4_av <- resid(lm(avcondition[-2] ~ O2_sat_av + NO2_av + spavar$netcen[-2] + spavar$updist[-2], data=env[-2,]))
+plot(res_NH4_av ~ NH4_av, data=env[-2,])
+abline(lm(res_NH4_av ~ NH4_av, data=env[-2,]))
+
+res_NO2_av <- resid(lm(avcondition[-2] ~ O2_sat_av + NH4_av + spavar$netcen[-2] + spavar$updist[-2], data=env[-2,]))
+plot(res_NO2_av ~ NO2_av, data=env[-2,])
+abline(lm(res_NO2_av ~ NO2_av, data=env[-2,]))
+
+res_updist <- resid(lm(avcondition[-2] ~ O2_sat_av + + NO2_av + NH4_av + spavar$netcen[-2], data=env[-2,]))
+plot(res_updist ~  spavar$updist[-2])
+abline(lm(res_updist ~  spavar$updist[-2]))
 
 #### Length ####
 plot(avlength)
@@ -168,14 +214,14 @@ step.model <- stepAIC(lm(avlength ~ T_av + con_av + O2_sat_av + Cl_av + COD_av +
 step.model
 
 # Check the effect of the outlier (location 12)
-step.model <- stepAIC(lm(avlength[-c(10)] ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-c(10)] + spavar$updist[-c(10)], data=env[-c(10),]),
+step.model <- stepAIC(lm(avlength[-c(2,10)] ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-c(2,10)] + spavar$updist[-c(2,10)], data=env[-c(2,10),]),
                       direction = "both", 
                       trace = FALSE)
 step.model
 
 # When location 12 is excluded, the effect of Cl disappears. Do not use Cl in the final model.
 
-summary(model <- lm(avlength ~ con_av + NO3_av + spavar$netcen, data=env))
+summary(model <- lm(avlength ~ con_av + NO3_av + NO2_av + spavar$netcen, data=env))
 #plot(model)
 
 res_netcen <- resid(lm(avlength ~ con_av + NO3_av, data=env))
@@ -191,12 +237,12 @@ model <- lm(avin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_
 summary(model)
 #plot(model)                      
 
-step.model <- stepAIC(lm(avin$gyro ~ avlength + avcondition + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen + spavar$updist, data=env),
+step.model <- stepAIC(lm(avin$gyro[-c(2,10)] ~ avlength[-c(2,10)] + avcondition[-c(2,10)] + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + spavar$netcen[-c(2,10)] + spavar$updist[-c(2,10)], data=env[-c(2,10),]),
                       direction = "both", 
                       trace = FALSE)
 step.model
 
-summary(model <- lm(avin$gyro ~ avlength + T_av + con_av + NO3_av, data=env))
+summary(model <- lm(avin$gyro ~ avlength + T_av + con_av, data=env))
 #plot(model)
 
 res_avlength <- resid(lm(avin$gyro ~ T_av + con_av + NO3_av, data=env))
@@ -210,6 +256,7 @@ abline(lm(res_T_av ~ T_av, data=env))
 res_con_av <- resid(lm(avin$gyro ~ avlength + T_av + NO3_av, data=env))
 plot(res_con_av ~ con_av, data=env)
 abline(lm(res_con_av ~ con_av, data=env))
+lines(lowess(res_con_av ~ env$con_av), col=3)
 
 res_NO3_av <- resid(lm(avin$gyro ~ avlength + T_av + con_av, data=env))
 plot(res_NO3_av ~ NO3_av, data=env)
@@ -460,6 +507,10 @@ summary(model)
 plot(as.factor(angui_pa), env$T_av)
 
 
+
+
+
+# Some additional code to be used for SEM
 
 library(piecewiseSEM)
 

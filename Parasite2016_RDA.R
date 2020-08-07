@@ -106,12 +106,23 @@ parsum = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x
 avin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x[x >0], na.rm = T)}); avin[is.na(avin)] <- 0
 avab = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x, na.rm =T)})
 prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
+medin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) ; medin[is.na(medin)] <- 0
+
+#parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
+datao <- na.omit(data[,c(1,23:25,27:33)])
+ddata <- dispweight(datao[,-1])
+avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
 
 # Hellinger transformation of the species dataset ####
-spe.hel <- vegdist(decostand(avin[,-1],"hellinger"), method="euc")
+# Component communties: Average abundance is used to compensate for differences in sampling size between sites
+spe.hel.avab <- vegdist(decostand(cbind(avab[,-1]), "hellinger"), method="bray")
+spe.hel.medin <- vegdist(decostand(medin[,-1],"hellinger"), method="euc")
 
-braycurtis <- vegdist(decostand(cbind(data[,c(23:25,27:33)],rep(1,nrow(data))), na.rm=T, method="hellinger"), method="bray", na.rm=T)
-meandist <- meandist(braycurtis, data$site)
+# Infracommunities: Dissimilarities are calculated at the individual level and then averaged within site; a dummy parasite species is added to avoid similarties due to zero-parasites
+data_infra <- na.omit(data[,c(1,23:25,27:33)])
+data_infra_disp <- dispweight(datao[,-1])
+braycurtis <- vegdist(decostand(cbind(data_infra_disp,rep(1,nrow(data_infra))), na.rm=T, method="hellinger"), method="bray", na.rm=T)
+meandist <- meandist(braycurtis, data_infra[,1])
 
 env_select <- env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
 #env_select <- env[,c("T","con","O2_sat","Cl","COD","NH4","NO3","NO2")]
@@ -121,6 +132,9 @@ plot(env_select$NO2_av)
 
 spe.rda <- dbrda(meandist ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
 #spe.rda <- dbrda(meandist ~ Cl_av, env_select)
+spe.rda <- dbrda(spe.hel.avab ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+spe.hel <- decostand(cbind(avab[,-1]), "hellinger")
+spe.rda <- rda(spe.hel ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
 
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
@@ -146,7 +160,7 @@ g <- autoplot(spe.rda, arrows = FALSE, geom = c("point", "text")) + geom_text(si
 g + geom_hline(yintercept = 0, linetype="dotted") + geom_vline(xintercept = 0, linetype="dotted")
 ggsave("environmentspecies.png", units="in", width=10, height=10, dpi=300)
 
-
+# Spatial effects
 spe.rda <- dbrda(meandist ~ spavar$netcen + spavar$updist)
 
 plot(spe.rda, scaling = 1)
@@ -157,15 +171,32 @@ RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
 
+spe.rda <- dbrda(spe.hel.avab ~ spavar$netcen + spavar$updist)
+
+plot(spe.rda, scaling = 1)
+summary(spe.rda)
+anova(spe.rda)
+anova.cca(spe.rda, step=1000);
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
 
 #variance partitioning
-spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3],spa.PCNM), env_select$Cl_av)
+spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3],spa.PCNM), env_select)
 spe.varpart1 <- varpart(meandist, cbind(spa.PCNM[,1:2]), env_select)
 spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3]), env_select)
 par(mfrow=c(1,2))
 showvarparts(2)
 plot(spe.varpart1,digits=2)
 spe.varpart1
+
+spe.varpart1 <- varpart(spe.hel.avab, cbind(spavar[,2:3],spa.PCNM), env_select)
+spe.varpart1 <- varpart(spe.hel.avab, cbind(spa.PCNM[,1:2]), env_select)
+spe.varpart1 <- varpart(spe.hel.avab, cbind(spavar[,2:3]), env_select)
+par(mfrow=c(1,2))
+showvarparts(2)
+plot(spe.varpart1,digits=2)
+spe.varpart1
+
 
 #cor(cbind(spavar[,2:3],spa.PCNM))
 
@@ -176,7 +207,7 @@ avin
 prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
 
 # Hellinger transformation of the species dataset ####
-spe.hel <- decostand(prev[,-1],"hellinger")
+spe.hel <- vegdist(decostand(avab[,-1],"hellinger"), method="bray") # Bray-Curtis distances
 
 env_select <- env[,c("T_max","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
 
@@ -188,13 +219,24 @@ anova.cca(spe.rda, step=1000);
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
-plot(env_select$T_max, prev$gyro)
-model <- lm(prev$gyro ~ T_max + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, data=env_select)
-summary(model)  
 
-res_T_max <- resid(lm(prev$gyro ~ con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, data=env_select))
-plot(res_T_max ~ env_select$T_max)
-abline(lm(res_T_max ~ env_select$T_max))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Set working directory
 setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')

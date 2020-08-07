@@ -199,7 +199,11 @@ model <- psem(
 summary(model)
 
 
-
+model <- psem(
+  lm(prev$gyro ~ avcondition + avlength + T_av + con_av + COD_av + NO3_av, data=env),
+  lm(avcondition ~ con_av, data=env),
+)
+summary(model)
 
 
 
