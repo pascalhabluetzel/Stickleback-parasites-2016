@@ -6,7 +6,7 @@ library(lme4)
 library(nlme)
 library(dplyr) # building data matrix
 library(MASS) # for GLMMs
-
+library(vegan)
 
 setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
 #setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Analysis_2020/data')
@@ -33,14 +33,13 @@ cor(cbind(env_max, env_av, spavar))
 env_av_exp <- env_av %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 env_max_exp <- env_max %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
-spa.PCNM_exp <- spa.PCNM %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 
-data <- cbind(data_2016, env_av_exp, env_max_exp, spavar_exp, spa.PCNM_exp)
+data <- cbind(data_2016, env_av_exp, env_max_exp, spavar_exp)
 data$site <- as.factor(data$site)
 data$fish <- as.factor(data$fish)
 data$length <- as.numeric(data$length)
 
-data0 <- cbind(data_2016, env_exp[,-1], spavar_exp, spa.PCNM_exp)
+data0 <- cbind(data_2016, env_av_exp[,-1], spavar_exp)
 NAs <- 1>rowSums(is.na(data0[,c("weight", "length", "Sex")])) # identify fish with any of the following data missing: length, weight, sex
 table(NAs)
 data <- data0[NAs,] # remove fish with missing data
@@ -57,6 +56,7 @@ prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >
 medin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) 
 
 avlength <- aggregate(data$length, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+condition <- resid(lm(data$weight~data$length + data$Sex), na.action=na.exclude)
 avcondition <- aggregate(condition, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
 
 avin[is.na(avin)] <- 0
@@ -117,9 +117,10 @@ avPI <- aggregate(data$PI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[
 
 dataX <- as.data.frame(cbind(avab[,-c(1)], avcondition, avlength, avPI, env[,c(4,7,8,9,11,13,14,15)], spavar[,2:3]))
 names(dataX)
+plot(avPI)
 model <- psem(
-  lm(avPI ~ avcondition + avlength + T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist, data=dataX),
-  lm(avcondition ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av + netcen + updist, data=dataX), data=dataX)
+  lm(avPI ~ avcondition + avlength + T_av + con_av + O2_sat_av + COD_av + NH4_av + netcen + updist, data=dataX),
+  lm(avlength ~ T_av + con_av + O2_sat_av + COD_av + NH4_av + netcen + updist, data=dataX), data=dataX)
 summary(model)
 
 model <- psem(

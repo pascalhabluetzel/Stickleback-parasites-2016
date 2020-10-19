@@ -63,27 +63,6 @@ plot(spavar$updist, spa.PCNM$V1) #first MEM corresponds to distance from Demer-D
 cor(spavar$netcen, spa.PCNM$V2)
 plot(spavar$netcen, spa.PCNM$V2) #second MEM corresponds to network centrality
 
-# remove correlated variables
-#write.csv(cor(cbind(env[,-1], spavar), use="pairwise.complete.obs"), file="collinearity.csv")
-# uncorrelated variables: T_max, T_av, T_min, con_min, COD_min, KjN_min, NH4_min, NO3_min, SM_min, T, con, COD, NO3, SM
-# correlation within variable type: pH (all 4 measures, keep pH_av), O2_av and O2_min (keep O2_av), O2_sat_av and O2_sat_min (keep 02_sat_av), Cl (all except Cl, which is correlated with Cl_max -> keep only Cl_av); COD_av and COD_max (keep COD_av); 
-# correlation between variable types: pH_av and con_av (keep con_av), O2_av and O2_sat_av (keep O2_sat_av), O2_max and O2_sat_max (keep O2_sat_max), O2 and O2_sat (keep O2_sat)
-# BOC, NO2 oPO4 -> keep only NO2_av
-# NO3 and Nt -> keep only NO3_av
-# KjN, NH4 and Pt -> keep only NH4_av
-# pH and conductivity -> keep only con_av
-# SO4: all measures correlated -> keep only SO4_av
-# SM: all measures correlated -> keep only SM_av
-# Cl: all measures correlated -> keep only Cl_av
-# COD: all measures somewhat correlated -> keep only COD_av
-# temp: all measures somewhat correlated -> keep only T_av
-# O2 and O2_sat: all measures somewhat correlated -> keep only O2_sat_av
-# speciesrichness is marginally related to network centrality (corr.coef. -0.60) -> keep only network centrality
-# updist and updist2 are correlated -> keep only updist
-# updist3 is not related to any other parameter -> keep
-
-#write.csv(cor(cbind(env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av","SO4_av")], spavar), use="pairwise.complete.obs"), file="collinearity_selected.csv")
-
 # make a new data frame by combinding parasite, environmental and space data
 env_exp <- env %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
 #env_av_exp <- env_av %>% slice(rep(1:n(), table(as.factor(data_2016$site))))
@@ -100,7 +79,7 @@ data$fish <- as.factor(data$fish)
 data$length <- as.numeric(data$length)
 
 
-#### CALCULATE PARAMETERS ####
+#### CALCULATE INFECTION PARAMETERS ####
 names(data)
 parsum = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x, na.rm = T)}) 
 avin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x[x >0], na.rm = T)}); avin[is.na(avin)] <- 0
@@ -113,30 +92,33 @@ datao <- na.omit(data[,c(1,23:25,27:33)])
 ddata <- dispweight(datao[,-1])
 avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
 
-# Hellinger transformation of the species dataset ####
-# Component communties: Average abundance is used to compensate for differences in sampling size between sites
-spe.hel.avab <- vegdist(decostand(cbind(avab[,-1]), "hellinger"), method="bray")
-spe.hel.medin <- vegdist(decostand(medin[,-1],"hellinger"), method="euc")
+###########################
+# RDA on infracommunities #
+###########################
 
-# Infracommunities: Dissimilarities are calculated at the individual level and then averaged within site; a dummy parasite species is added to avoid similarties due to zero-parasites
+# Infracommunities: Bray-Curtis dissimilarities are calculated at the individual host level Hellinger-transformed parasite data and then averaged within site
+# A dummy parasite species is added to avoid problems with non-infected fishes
 data_infra <- na.omit(data[,c(1,23:25,27:33)])
-data_infra_disp <- dispweight(datao[,-1])
+data_infra_disp <- dispweight(data_infra[,-1])
 braycurtis <- vegdist(decostand(cbind(data_infra_disp,rep(1,nrow(data_infra))), na.rm=T, method="hellinger"), method="bray", na.rm=T)
-meandist <- meandist(braycurtis, data_infra[,1])
+meandist_bray <- meandist(braycurtis, data_infra[,1])
 
+# Check whether Euclidean and Bray-Curtis distances are comparable
+braycurtis <- vegdist(decostand(cbind(data_infra_disp,rep(1,nrow(data_infra))), na.rm=T, method="hellinger"), method="bray", na.rm=T)
+meandist_bray <- meandist(braycurtis, data_infra[,1])
+euc <- vegdist(decostand(cbind(data_infra_disp,rep(1,nrow(data_infra))), na.rm=T, method="hellinger"), method="euc", na.rm=T)
+meandist_euc <- meandist(euc, data_infra[,1])
+plot(meandist_bray[1:37,1:37], meandist_euc[1:37,1:37])
+mantel(meandist_bray[1:37,1:37], meandist_euc[1:37,1:37])
+
+
+# environmental variables
 env_select <- env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
-#env_select <- env[,c("T","con","O2_sat","Cl","COD","NH4","NO3","NO2")]
-#env_select <- env[,c("T_max","con_max","O2_sat_max","Cl_max","COD_max","NH4_max","NO3_max","NO2_max")]
 
-plot(env_select$NO2_av)
+# Assess the effect of environmental variables on parasite infracommunity dissimilarities using distance based RDA
+spe.rda <- dbrda(meandist_bray ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
 
-spe.rda <- dbrda(meandist ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
-#spe.rda <- dbrda(meandist ~ Cl_av, env_select)
-spe.rda <- dbrda(spe.hel.avab ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
-spe.hel <- decostand(cbind(avab[,-1]), "hellinger")
-spe.rda <- rda(spe.hel ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
-
-plot(spe.rda, scaling = 1)
+plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
 summary(spe.rda)
 anova(spe.rda)
 anova(spe.rda, by="term")
@@ -145,14 +127,26 @@ anova.cca(spe.rda, step=1000, by="term");
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
-mod0 <- dbrda(meandist ~ 1, env_select)  # Model with intercept only  #edit_PH
-mod1 <- dbrda(meandist ~ ., env_select)  # Model with all explanatory variables  #edit_PH
+mod0 <- dbrda(meandist_bray ~ 1, env_select)  # Model with intercept only  #edit_PH
+mod1 <- dbrda(meandist_bray ~ ., env_select)  # Model with all explanatory variables  #edit_PH
 step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
+step.res$anova
 step.res$anova  # Summary table
 
 # Check whether exclusion of site 12 changes results
-mod0 <- dbrda(meandist[-c(10),-c(10)] ~ 1, env_select[-c(10),])  # Model with intercept only  #edit_PH
-mod1 <- dbrda(meandist[-c(10),-c(10)] ~ ., env_select[-c(10),])  # Model with all explanatory variables  #edit_PH
+spe.rda <- dbrda(meandist_bray[-10,-10] ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select[-10,])
+
+plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
+summary(spe.rda)
+anova(spe.rda)
+anova(spe.rda, by="term")
+anova.cca(spe.rda, step=1000);
+anova.cca(spe.rda, step=1000, by="term");
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
+
+mod0 <- dbrda(meandist_bray[-10,-10] ~ 1, env_select[-10,])  # Model with intercept only  #edit_PH
+mod1 <- dbrda(meandist_bray[-10,-10] ~ ., env_select[-10,])  # Model with all explanatory variables  #edit_PH
 step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
 step.res$anova  # Summary table
 
@@ -161,7 +155,7 @@ g + geom_hline(yintercept = 0, linetype="dotted") + geom_vline(xintercept = 0, l
 ggsave("environmentspecies.png", units="in", width=10, height=10, dpi=300)
 
 # Spatial effects
-spe.rda <- dbrda(meandist ~ spavar$netcen + spavar$updist)
+spe.rda <- dbrda(meandist_bray ~ spavar$netcen + spavar$updist)
 
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
@@ -170,48 +164,83 @@ anova.cca(spe.rda, step=1000);
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
-
-spe.rda <- dbrda(spe.hel.avab ~ spavar$netcen + spavar$updist)
-
-plot(spe.rda, scaling = 1)
-summary(spe.rda)
-anova(spe.rda)
-anova.cca(spe.rda, step=1000);
-RsquareAdj(spe.rda)$adj.r.squared;
-RsquareAdj(spe.rda)$r.squared
-
-#variance partitioning
-spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3],spa.PCNM), env_select)
-spe.varpart1 <- varpart(meandist, cbind(spa.PCNM[,1:2]), env_select)
-spe.varpart1 <- varpart(meandist, cbind(spavar[,2:3]), env_select)
+#Variation partitioning
+spe.varpart1 <- varpart(meandist_bray, cbind(spavar[,2:3],spa.PCNM), env_select)
+spe.varpart1 <- varpart(meandist_bray, cbind(spa.PCNM[,1:2]), env_select)
+spe.varpart1 <- varpart(meandist_bray, cbind(spavar[,2:3]), env_select)
 par(mfrow=c(1,2))
 showvarparts(2)
 plot(spe.varpart1,digits=2)
 spe.varpart1
+# Unique space fraction
+anova_space <- anova.cca(dbrda(meandist_bray ~ spavar[,2] + spavar[,3] + Condition(T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av), data=env_select), step=1000)
+anova_space
+# Unique environment fraction
+anova_env <- anova.cca(dbrda(meandist_bray ~ . + Condition(spavar[,2] + spavar[,3]), data=env_select), step=1000)
+anova_env
 
-spe.varpart1 <- varpart(spe.hel.avab, cbind(spavar[,2:3],spa.PCNM), env_select)
-spe.varpart1 <- varpart(spe.hel.avab, cbind(spa.PCNM[,1:2]), env_select)
-spe.varpart1 <- varpart(spe.hel.avab, cbind(spavar[,2:3]), env_select)
+#Removing location 12
+#Variation partitioning
+spe.varpart1 <- varpart(meandist_bray[-10,-10], cbind(spavar[-10,2:3]), env_select[-10,])
 par(mfrow=c(1,2))
 showvarparts(2)
 plot(spe.varpart1,digits=2)
 spe.varpart1
+# Unique space fraction
+anova_space <- anova.cca(dbrda(meandist_bray[-10,-10] ~ spavar[-10,2] + spavar[-10,3] + Condition(T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av), data=env_select[-10,]), step=1000)
+anova_space
+# Unique environment fraction
+anova_env <- anova.cca(dbrda(meandist_bray[-10,-10] ~ . + Condition(spavar[-10,2] + spavar[-10,3]), data=env_select[-10,]), step=1000)
+anova_env
+
+# PermANOVA (adonis)
+adonis(meandist_bray[-10,-10] ~ . + spavar[-10,2] + spavar[-10,3], data=env_select[-10,])
+adonis(meandist_bray[-10,-10] ~ con_av + spavar[-10,"updist"], data=env_select[-10,])
 
 
-#cor(cbind(spavar[,2:3],spa.PCNM))
 
 
-plot(avab[,2], env_select$T_max)
-avin
+################################
+# RDA on component communities #
+################################
 
-prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
+# Component communities: Bray-Curtis dissimilarities based on Hellinger transformed average abundance data
+#parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
+datao <- na.omit(data[,c(1,23:25,27:33)])
+ddata <- dispweight(datao[,-1])
+avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
 
-# Hellinger transformation of the species dataset ####
-spe.hel <- vegdist(decostand(avab[,-1],"hellinger"), method="bray") # Bray-Curtis distances
+spe.hel_bray <- vegdist(decostand(avab[,-1], na.rm=T, method="hellinger"), method="bray", na.rm=T)
 
-env_select <- env[,c("T_max","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
+# Check whether Euclidean and Bray-Curtis distances are comparable
+spe.hel_euc <- vegdist(decostand(avab[,-1], na.rm=T, method="hellinger"), method="euc", na.rm=T)
+plot(spe.hel_bray, spe.hel_euc)
+mantel(spe.hel_bray, spe.hel_euc)
 
-spe.rda <- dbrda(spe.hel ~ T_max + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+# environmental variables
+env_select <- env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
+
+# Assess the effect of environmental variables on parasite infracommunity dissimilarities using distance based RDA
+spe.rda <- dbrda(spe.hel_bray ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+sppscores(spe.rda) <- decostand(avab[,-1], na.rm=T, method="hellinger") 
+
+plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
+summary(spe.rda)
+anova(spe.rda)
+anova(spe.rda, by="term")
+anova.cca(spe.rda, step=1000);
+anova.cca(spe.rda, step=1000, by="term");
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
+
+mod0 <- dbrda(spe.hel_bray ~ 1, env_select)  # Model with intercept only  #edit_PH
+mod1 <- dbrda(spe.hel_bray ~ ., env_select)  # Model with all explanatory variables  #edit_PH
+step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
+step.res$anova  # Summary table
+
+# Spatial effects
+spe.rda <- dbrda(spe.hel_bray ~ spavar$netcen + spavar$updist)
+
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
 anova(spe.rda)
@@ -219,23 +248,202 @@ anova.cca(spe.rda, step=1000);
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
+#Variation partitioning
+spe.varpart1 <- varpart(spe.hel_bray, cbind(spavar[,2:3]), env_select)
+par(mfrow=c(1,2))
+showvarparts(2)
+plot(spe.varpart1,digits=2)
+spe.varpart1
+# Unique space fraction
+anova.cca(dbrda(spe.hel_bray ~ spavar[,2] + spavar[,3] + Condition(T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av), data=env_select), step=1000)
+# Unique environment fraction
+anova.cca(dbrda(spe.hel_bray ~ . + Condition(spavar[,2] + spavar[,3]), data=env_select), step=1000)
+
+
+# PermANOVA (adonis)
+adonis(spe.hel_bray ~ . + spavar[,2] + spavar[,3], data=env_select)
+
+# PermANOVA without location 2
+spe.hel <- decostand(avab[,-1], na.rm=T, method="hellinger")
+adonis(spe.hel[-2,] ~ . + spavar[-2,2] + spavar[-2,3], data=env_select[-2,], method="bray")
+
+# RDA biplot without location 2
+spe.rda <- dbrda(spe.hel[-2,] ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select[-2,], method="bray")
+sppscores(spe.rda) <- decostand(avab[-2,-1], na.rm=T, method="hellinger") 
+
+plot(spe.rda, scaling = 1)
 
 
 
 
 
+install.packages("lmPerm")
+library(lmPerm)
+
+
+summary(model <- aovp(diag(meandist_bray)~.,env_select))
+step.model <- stepAIC(model,
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+summary(model <- aovp(diag(meandist_bray)~T_av+con_av+COD_av+NH4_av+NO2_av,env_select))
+
+library(car)
+scatterplotMatrix(new_env_select<-as.data.frame(cbind(env_select$T_av, (env_select$con_av)^2, (env_select$O2_sat_av)^3, (env_select$Cl_av)^(1/3), env_select$COD_av, (env_select$NH4_av)^(1/3), env_select$NO3_av^(1/3))))
+cor(new_env_select)
+plot(new_env_select)
+summary(model <- lm(diag(meandist_bray)~.,new_env_select))
+plot(model)
+step.model <- stepAIC(model,
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+summary(model <- lm(diag(meandist_bray)~V1+V4,new_env_select))
+plot(model)
+
+?scatterplotMatrix
+summary(model <- lm(sqrt(avab$gyro)~.,env_select))
+step.model <- stepAIC(model,
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+summary(model <- lm(avab$gyro~Cl_av,env_select))
+plot(model)
+summary(model <- lm(avab$gyro[-10]~Cl_av,env_select[-10,]))
+plot(model)
+
+
+summary(model <- lm(sqrt(avab$tricho)~.,env_select))
+step.model <- stepAIC(model,
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+summary(model <- lm(avab$gyro~Cl_av+COD_av,env_select))
+plot(model)
+summary(model <- lm(avab$gyro[-10]~Cl_av+COD_av,env_select[-10,]))
+plot(model)
+
+summary(model <- lm(sqrt(avab$glugea)~.,env_select))
+step.model <- stepAIC(model,
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+summary(model <- lm(avab$glugea~O2_sat_av+NH4_av+NO3_av,env_select))
+plot(model)
+
+summary(model <- lm(sqrt(avab$contra)~.,env_select))
+step.model <- stepAIC(model,
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+
+summary(model <- lm(sqrt(avab$angui)~.,env_select))
+step.model <- stepAIC(model,
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+summary(model <- lm(avab$glugea~T_av+O2_sat_av+NH4_av+NO2_av,env_select))
+plot(model)
 
 
 
 
+summary(model <- lm(avab$gyro~O2_sat_av+Cl_av+COD_av+NO3_av+NO2_av,env_select))
+
+plot(model)
+
+?lmp
+res <- resid(lmp(avab$gyro~O2_sat_av+COD_av+NO3_av+NO2_av,env_select))
+plot(res~Cl_av, env_select)
+
+
+summary(model <- lm(diag(meandist_bray)~.,env_select))
+summary(model <- rlm(diag(meandist_bray)~.,env_select))
+library(MASS)
+#install.packages("MuMIn")
+library(MuMIn)
+dredge(model, rank = "AIC")
+#install.packages("sfsmisc")
+library(sfsmisc)
+f.robftest(model, var = "T_av")
+
+summary(model <- lm(avab$gyro~.,env_select))
+summary(model <- rlm(avab$gyro~.,env_select))
+dredge(model, rank = "BIC")
+summary(model <- rlm(avab$gyro~Cl_av+con_av+NO3_av,env_select))
+f.robftest(model, var = "Cl_av")
+f.robftest(model, var = "con_av")
+f.robftest(model, var = "NO3_av")
+
+plot(model)
+
+step.model <- stepAIC(lm(diag(meandist_bray)~.,env_select),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
+summary(lm(diag(meandist_bray)~T_av+con_av+COD_av+NH4_av+NO2_av,env_select))
+
+res_T_av <- resid(lm(diag(meandist_bray)~con_av+COD_av+NH4_av+NO2_av,env_select))
+plot(res_T_av~env_select$T_av)
+lines(lowess(res_T_av~env_select$T_av), col=3)
+
+res_COD_av <- resid(lm(diag(meandist_bray)~T_av+con_av+NH4_av+NO2_av,env_select))
+plot(res_COD_av~env_select$COD_av)
+lines(lowess(res_COD_av~env_select$COD_av), col=3)
+
+library(caret)
+# Define training control
+set.seed(123)
+train.control <- trainControl(method = "repeatedcv", 
+                              number = 3, repeats = 10)
+x <- diag(meandist_bray)
+new_data <- cbind(env_select, x)
+colnames(new_data)
+# Train the model
+model <- train(x~T_av+con_av+O2_sat_av+Cl_av+COD_av+NH4_av+NO3_av+NO2_av, data=new_data, method = "lmStepAIC",
+               trControl = train.control)
+summary(model)
+model2 <- lm(x~T_av+con_av+COD_av+NH4_av+NO2_av, data=new_data)
+summary(model2)
+
+step.model <- stepAIC(lm(x~T_av+con_av+COD_av+NH4_av+NO2_av, data=new_data),
+                      direction = "both", 
+                      trace = FALSE)
+step.model
 
 
 
+#Step Backward and remove one variable at a time
+tctrl <- trainControl(method = "cv",number=3,
+                      repeats=10)
+#Declare exactly which parameters you want to test
+rpart_opts <- expand.grid(cp = seq(0.0,0.01, by = 0.001))
 
+rpart_model <- train(x~., data = new_data, method="rpart",
+                     metric = "RMSE", trControl = tctrl,
+                     tuneGrid = rpart_opts)
 
+summary(rpart_model)
 
+?confusionMatrix
+# Summarize the results
+print(model)
+#plot(model)
+?caret::train
 
+install.packages("mlbench")
+library(mlbench)
+data(BostonHousing)
 
+lmFit <- train(medv ~ . + rm:lstat,
+               data = BostonHousing,
+               method = "lm",
+               class
+               metric = "ROC")
+lmFit$finalModel
+ggplot(lmFit)
+
+###### Old code
 
 
 # Set working directory
