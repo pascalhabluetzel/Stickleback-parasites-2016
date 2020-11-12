@@ -14,10 +14,10 @@ library(vegan) # for MEMs
 
 # Set working directory
 setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
-
+setwd('C:/Users/u0113095/Documents/GitHub/Stickleback-parasites-2016')
 # Load data
-data_2016 <- read.csv("data_2016.csv", sep=';') #field and parasite data
-env <- read.csv("Environment_R.csv", sep=',') #all environmental data
+data_2016 <- read.csv("data_2016_1211.csv", sep=';') #field and parasite data
+env <- read.csv("Environment_RDA.csv", sep=';') #all environmental data
 #env_av <- read.csv("Env_av.csv", sep=';') #environmental variables (average values)
 #env_max <- read.csv("env_max.csv", sep=';') #environmental variables (max. values)
 spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
@@ -81,14 +81,14 @@ data$length <- as.numeric(data$length)
 
 #### CALCULATE INFECTION PARAMETERS ####
 names(data)
-parsum = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x, na.rm = T)}) 
-avin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x[x >0], na.rm = T)}); avin[is.na(avin)] <- 0
-avab = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){mean(x, na.rm =T)})
-prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
-medin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) ; medin[is.na(medin)] <- 0
+parsum = aggregate(data[,c(21:23,25:31)], by = list(data[,1]), function(x){sum(x, na.rm = T)}) 
+avin = aggregate(data[,c(21:23,25:31)], by = list(data[,1]), function(x){mean(x[x >0], na.rm = T)}); avin[is.na(avin)] <- 0
+avab = aggregate(data[,c(21:23,25:31)], by = list(data[,1]), function(x){mean(x, na.rm =T)})
+prev = aggregate(data[,c(21:23,25:31)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
+medin = aggregate(data[,c(21:23,25:31)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) ; medin[is.na(medin)] <- 0
 
 #parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
-datao <- na.omit(data[,c(1,23:25,27:33)])
+datao <- na.omit(data[,c(21:23,25:31)])
 ddata <- dispweight(datao[,-1])
 avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
 
@@ -98,7 +98,7 @@ avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
 
 # Infracommunities: Bray-Curtis dissimilarities are calculated at the individual host level Hellinger-transformed parasite data and then averaged within site
 # A dummy parasite species is added to avoid problems with non-infected fishes
-data_infra <- na.omit(data[,c(1,23:25,27:33)])
+data_infra <- na.omit(data[,c(1,21:23,25:31)])
 data_infra_disp <- dispweight(data_infra[,-1])
 braycurtis <- vegdist(decostand(cbind(data_infra_disp,rep(1,nrow(data_infra))), na.rm=T, method="hellinger"), method="bray", na.rm=T)
 meandist_bray <- meandist(braycurtis, data_infra[,1])
@@ -113,11 +113,20 @@ mantel(meandist_bray[1:37,1:37], meandist_euc[1:37,1:37])
 
 
 # environmental variables
-env_select <- env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
+env_select <- env[,c("Temperature","Conductivity","Oxygen","COD","NH4","Nt","Meander", "Poolriffle")]
+env_select$Poolriffle <- as.factor(env_select$Poolriffle)
+env_select$Meander <- as.factor(env_select$Meander)
 
 # Assess the effect of environmental variables on parasite infracommunity dissimilarities using distance based RDA
-spe.rda <- dbrda(meandist_bray ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+spe.rda <- dbrda(meandist_bray ~ Temperature + Conductivity + Oxygen + COD + NH4 + Nt + Meander +
+                   Poolriffle, env_select)
+mod0 <- dbrda(meandist_bray ~ 1, env_select)  # Model with intercept only  #edit_PH
+mod1 <- dbrda(meandist_bray ~ ., env_select)  # Model with all explanatory variables  #edit_PH
+step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
+step.res$anova
+step.res$anova  # Summary table
 
+spe.rda <- dbrda(meandist_bray ~  COD + NH4 + Meander, env_select)
 plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
 summary(spe.rda)
 anova(spe.rda)
@@ -127,14 +136,10 @@ anova.cca(spe.rda, step=1000, by="term");
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
-mod0 <- dbrda(meandist_bray ~ 1, env_select)  # Model with intercept only  #edit_PH
-mod1 <- dbrda(meandist_bray ~ ., env_select)  # Model with all explanatory variables  #edit_PH
-step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
-step.res$anova
-step.res$anova  # Summary table
 
 # Check whether exclusion of site 12 changes results
-spe.rda <- dbrda(meandist_bray[-10,-10] ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select[-10,])
+spe.rda <- dbrda(meandist_bray[-10,-10] ~ Temperature + Conductivity + Oxygen + COD + NH4 + Nt + Meander +
+                   Poolriffle, env_select[-10,])
 
 plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
 summary(spe.rda)
@@ -150,34 +155,51 @@ mod1 <- dbrda(meandist_bray[-10,-10] ~ ., env_select[-10,])  # Model with all ex
 step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
 step.res$anova  # Summary table
 
-g <- autoplot(spe.rda, arrows = FALSE, geom = c("point", "text")) + geom_text(size = 10) + theme_few() + xlim(c(-0.7,1.2)) + scale_color_manual(values = c("black","#009999","#006666"))
-g + geom_hline(yintercept = 0, linetype="dotted") + geom_vline(xintercept = 0, linetype="dotted")
-ggsave("environmentspecies.png", units="in", width=10, height=10, dpi=300)
+png(file="Results/Infra_env.png", res=600, width=3000, height=3000)
+pRDAplot <- plot(spe.rda, choices = c(1, 2), type="n", cex.lab=1, xlab="dbRDA 1 (13.20%) ", ylab="dbRDA2 (3.31%)")
+with(env_select, points(spe.rda, display = "sites", cex=0.7, pch = 19, col = 'black'))
+text(spe.rda, "bp",choices = c(1, 2), col="black", cex=0.6)
+dev.off()
 
 # Spatial effects
-spe.rda <- dbrda(meandist_bray ~ spavar$netcen + spavar$updist)
+space <- cbind(spavar[,c(2,3)], spa.PCNM[,3])
+space$Upstream <- space$updist
+space$NetCen <- space$netcen
+space$PCNM3 <- space$`spa.PCNM[, 3]`
+space <- space[,c(4:6)]
+
+spe.rda <- dbrda(meandist_bray~Upstream + NetCen + PCNM3, space)
 
 plot(spe.rda, scaling = 1)
 summary(spe.rda)
 anova(spe.rda)
 anova.cca(spe.rda, step=1000);
+anova.cca(spe.rda, step=1000, by="term");
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
+png(file="Results/Infra_spa.png", res=600, width=3000, height=3000)
+pRDAplot <- plot(spe.rda, choices = c(1, 2), type="n", cex.lab=1, xlab="dbRDA 1 (4.15%) ", ylab="dbRDA2 (3.70%)")
+with(space, points(spe.rda, display = "sites", cex=0.7, pch = 19, col = 'black'))
+text(spe.rda, "bp",choices = c(1, 2), col="black", cex=0.6)
+dev.off()
+
+
 #Variation partitioning
-spe.varpart1 <- varpart(meandist_bray, cbind(spavar[,2:3],spa.PCNM), env_select)
-spe.varpart1 <- varpart(meandist_bray, cbind(spa.PCNM[,1:2]), env_select)
-spe.varpart1 <- varpart(meandist_bray, cbind(spavar[,2:3]), env_select)
-par(mfrow=c(1,2))
-showvarparts(2)
+spe.varpart1 <- varpart(meandist_bray, env_select, space)
 plot(spe.varpart1,digits=2)
 spe.varpart1
-# Unique space fraction
-anova_space <- anova.cca(dbrda(meandist_bray ~ spavar[,2] + spavar[,3] + Condition(T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av), data=env_select), step=1000)
-anova_space
-# Unique environment fraction
-anova_env <- anova.cca(dbrda(meandist_bray ~ . + Condition(spavar[,2] + spavar[,3]), data=env_select), step=1000)
-anova_env
+
+anova.cca(dbrda(meandist_bray ~ space[,1] + space[,2] + space[,3] +
+                  Condition(Temperature + Conductivity + Oxygen + COD +
+                              NH4 + Nt + Meander + Poolriffle), data=env_select), step=1000)
+
+anova.cca(dbrda(meandist_bray ~ Temperature + Conductivity + Oxygen + COD +
+                  NH4 + Nt + Meander + Poolriffle + Condition(space[,1] + space[,2] + space[,3]),
+                data=env_select), step=1000)
+
+# PermANOVA (adonis)
+adonis(meandist_bray~ . + space[,1] + space[,2] + space[,3] , data=env_select)
 
 #Removing location 12
 #Variation partitioning
@@ -206,7 +228,7 @@ adonis(meandist_bray[-10,-10] ~ con_av + spavar[-10,"updist"], data=env_select[-
 
 # Component communities: Bray-Curtis dissimilarities based on Hellinger transformed average abundance data
 #parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
-datao <- na.omit(data[,c(1,23:25,27:33)])
+datao <- na.omit(data[,c(1,21:23,25:31)])
 ddata <- dispweight(datao[,-1])
 avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
 
@@ -221,7 +243,8 @@ mantel(spe.hel_bray, spe.hel_euc)
 env_select <- env[,c("T_av","con_av","O2_sat_av","Cl_av","COD_av","NH4_av","NO3_av","NO2_av")]
 
 # Assess the effect of environmental variables on parasite infracommunity dissimilarities using distance based RDA
-spe.rda <- dbrda(spe.hel_bray ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select)
+spe.rda <- dbrda(spe.hel_bray ~ Temperature + Conductivity + Nt + Meander +
+                   Poolriffle, env_select)
 sppscores(spe.rda) <- decostand(avab[,-1], na.rm=T, method="hellinger") 
 
 plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
@@ -234,44 +257,52 @@ RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
 mod0 <- dbrda(spe.hel_bray ~ 1, env_select)  # Model with intercept only  #edit_PH
-mod1 <- dbrda(spe.hel_bray ~ ., env_select)  # Model with all explanatory variables  #edit_PH
+mod1 <- dbrda(spe.hel_bray ~ Temperature + Conductivity + Nt + Meander +
+                Poolriffle, env_select)  # Model with all explanatory variables  #edit_PH
 step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
 step.res$anova  # Summary table
 
-# Spatial effects
-spe.rda <- dbrda(spe.hel_bray ~ spavar$netcen + spavar$updist)
 
-plot(spe.rda, scaling = 1)
+png(file="Results/Comp_env.png", res=600, width=3000, height=3000)
+pRDAplot <- plot(spe.rda, choices = c(1, 2), type="n", cex.lab=1, xlab="dbRDA 1 (9.96%) ", ylab="dbRDA2 (6.65%)")
+with(env_select, text(spe.rda, display = "species", cex=0.7, pch = 19, col = 'grey'))
+with(env_select, points(spe.rda, display = "sites", cex=0.7, pch = 19, col = 'black'))
+text(spe.rda, "bp",choices = c(1, 2), col="black", cex=0.6)
+dev.off()
+
+# Spatial effects
+spe.rda <- dbrda(spe.hel_bray ~ Upstream + NetCen + PCNM3, space)
+sppscores(spe.rda) <- decostand(avab[,-1], na.rm=T, method="hellinger")
+plot(spe.rda, scaling = 2)
 summary(spe.rda)
 anova(spe.rda)
 anova.cca(spe.rda, step=1000);
+anova.cca(spe.rda, step=1000, by='term');
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 
+png(file="Results/Comp_spa.png", res=600, width=3000, height=3000)
+pRDAplot <- plot(spe.rda, choices = c(1, 2), type="n", cex.lab=1, xlab="dbRDA 1 (9.96%) ", ylab="dbRDA2 (6.65%)")
+with(space, text(spe.rda, display = "species", cex=0.7, pch = 19, col = 'grey'))
+with(space, points(spe.rda, display = "sites", cex=0.7, pch = 19, col = 'black'))
+text(spe.rda, "bp",choices = c(1, 2), col="black", cex=0.6)
+dev.off()
+
 #Variation partitioning
-spe.varpart1 <- varpart(spe.hel_bray, cbind(spavar[,2:3]), env_select)
-par(mfrow=c(1,2))
-showvarparts(2)
+# Temperature + Conductivity + Nt + Meander +Poolriffle
+spe.varpart1 <- varpart(spe.hel_bray, space, env_select[,c(1,2,6,7,8)])
 plot(spe.varpart1,digits=2)
 spe.varpart1
-# Unique space fraction
-anova.cca(dbrda(spe.hel_bray ~ spavar[,2] + spavar[,3] + Condition(T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av), data=env_select), step=1000)
-# Unique environment fraction
-anova.cca(dbrda(spe.hel_bray ~ . + Condition(spavar[,2] + spavar[,3]), data=env_select), step=1000)
+anova.cca(dbrda(spe.hel_bray ~ space[,1] + space[,2] + space[,3] +
+                  Condition(Temperature + Conductivity + Oxygen + Nt + Meander 
+                            + Poolriffle), data=env_select), step=1000)
+anova.cca(dbrda(spe.hel_bray ~ Temperature + Conductivity + Oxygen +
+                  Nt + Meander + Poolriffle + Condition(space[,1] + space[,2] + space[,3]),
+                data=env_select), step=1000)
 
 
 # PermANOVA (adonis)
-adonis(spe.hel_bray ~ . + spavar[,2] + spavar[,3], data=env_select)
-
-# PermANOVA without location 2
-spe.hel <- decostand(avab[,-1], na.rm=T, method="hellinger")
-adonis(spe.hel[-2,] ~ . + spavar[-2,2] + spavar[-2,3], data=env_select[-2,], method="bray")
-
-# RDA biplot without location 2
-spe.rda <- dbrda(spe.hel[-2,] ~ T_av + con_av + O2_sat_av + Cl_av + COD_av + NH4_av + NO3_av + NO2_av, env_select[-2,], method="bray")
-sppscores(spe.rda) <- decostand(avab[-2,-1], na.rm=T, method="hellinger") 
-
-plot(spe.rda, scaling = 1)
+adonis(spe.hel_bray ~ Temperature + Conductivity + Nt + Meander +Poolriffle + spavar[,1]+  spavar[,2] + spavar[,3], data=env_select)
 
 
 
