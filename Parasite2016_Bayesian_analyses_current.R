@@ -156,7 +156,7 @@ avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
 prev = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
 medin = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) 
 pa = aggregate(data[,c(23:25,27:33)], by = list(data[,1]), function(x){ifelse(mean(x, na.rm =T)>0,1,0)}) 
-
+?dispweight
 avab[is.na(avab)] <- 0
 prev[is.na(prev)] <- 0
 medin[is.na(medin)] <- 0
@@ -273,7 +273,7 @@ ggplot(predict, aes(x, predicted)) +
   geom_point(data = environment2, aes(x=environment2$Con_av, y=prev$gyro)) +
   labs(x=expression("Conductivity ["*mu*"S/cm]"), y=expression(italic(Gyrodactylus)~"sp. [prevalence]"))
 
-#### Median abundance ####
+#### Median infection intensity ####
 plot(medin$gyro); plot(density(medin$gyro))
 plot((medin$gyro)^(1/3)); plot(density((medin$gyro)^(1/3)))
 
