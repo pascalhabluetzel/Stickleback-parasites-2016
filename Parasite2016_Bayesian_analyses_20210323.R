@@ -17,7 +17,8 @@ library(dplyr)
 #######################
 
 #### READ AND PREPARE DATA ####
-setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Analysis_2020/Github/Data')
+#setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Analysis_2020/Github/Data')
+setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
 data <- read.csv("data_2016_2303.csv", sep=';')
 data$site <- as.factor(data$site)
 environment <- read.csv("Environment_update.csv", sep=';')
@@ -49,6 +50,7 @@ step.model
 summary(model <- lm(avcondition ~ T_av + pool_riffle + meander, data=environment2))
 
 plot(model)
+
 vif(model)
 res <- resid(lm(avcondition ~ pool_riffle, data=environment2))
 boxplot(res ~ environment2$meander)
@@ -179,7 +181,7 @@ summary(model)
 plot(model) 
 
 # Bayesian Model Averaging
-bas.model <- bas.lm(avab$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av^2 + COD_av 
+bas.model <- bas.glm(avab$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av^2 + COD_av 
                     + log(NH4._av) + log(Nt_av) + pool_riffle + meander + spavar$netcen + 
                       spavar$updist, data=environment2, prior="JZS")
 summary(bas.model)
