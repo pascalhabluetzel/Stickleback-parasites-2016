@@ -1,3 +1,6 @@
+#ignore this first line
+
+
 #The script runs on R v. 3.4.2
 
 #This script codes the Bayesian Model Averging for the stickleback parasite study
