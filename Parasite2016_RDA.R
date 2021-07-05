@@ -117,6 +117,12 @@ env_select <- env[,c("Temperature","Conductivity","Oxygen","COD","NH4","Nt","Mea
 env_select$Poolriffle <- as.factor(env_select$Poolriffle)
 env_select$Meander <- as.factor(env_select$Meander)
 
+pca <- prcomp(env_select, scale.=T)
+summary(pca)
+plot(pca)
+biplot(pca)
+?prcomp
+
 # Assess the effect of environmental variables on parasite infracommunity dissimilarities using distance based RDA
 spe.rda <- dbrda(meandist_bray ~ Temperature + Conductivity + Oxygen + COD + NH4 + Nt + Meander +
                    Poolriffle, env_select)

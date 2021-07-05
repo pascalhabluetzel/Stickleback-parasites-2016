@@ -1,10 +1,19 @@
 setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Analysis_2020/Github')
+setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
+
+#install.packages("magrittr")
+library(magrittr)
+install.packages("dplyr")
+install.packages("ellipsis")
+install.packages("vctrs")
+library(dplyr)
+
 env <- read.csv("Environment_R.csv", sep=';')
 spavar <- read.csv("space2.csv", sep=';') 
-spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data2$site))))
+spavar_exp <- spavar %>% slice(rep(1:n(), table(as.factor(data2$site)))) #Code is not reproducible. What is "data2"?
 data2 <- read.csv('data_update.csv', sep=';')
 data3 <- cbind(spavar_exp, data2)
-data3$site <- as.factor(data3$site)
+data3$site <- as.factor(data3$site) #Code is not reproducible. What is "data3"?
 data3 <- data3[,-1]
 
 model <- psem(
