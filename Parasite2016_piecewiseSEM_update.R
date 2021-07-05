@@ -1,3 +1,5 @@
+#Which version of R am I supposed to use here?
+
 setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Analysis_2020/Github')
 setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
 
