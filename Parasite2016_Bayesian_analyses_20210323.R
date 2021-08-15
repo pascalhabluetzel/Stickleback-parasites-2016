@@ -1,7 +1,7 @@
 #ignore this first line
 
 
-#The script runs on R v. 3.4.2
+#The script runs on R v. 4.0.2
 
 #This script codes the Bayesian Model Averging for the stickleback parasite study
 #It also includes figures
@@ -15,9 +15,9 @@ library(BAS) # for Bayesian models
 library(dplyr)
 
 
-#######################
-#### PRELIMINARIES ####
-#######################
+##########################
+#### 0. PRELIMINARIES ####
+##########################
 
 #### READ AND PREPARE DATA ####
 #setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Analysis_2020/Github/Data')
@@ -39,7 +39,87 @@ rownames(PIP) <- c("Condition", "Length", "Temperature", "Oxygen saturation", "C
 colnames(PIP) <- c("Condition", "Length", "Gyrodactylus abundance", "Gyrodactylus prevalence", "Gyrodactylus infection intensity", "Trichodina abundance", "Trichodina prevalence", "Trichodina infection intensity", "Glugea", "Contracaecum", "Aguillicola",
                    "PI", "PI_ecto", "PI_endo")  
 
-#### Condition ####
+#### CALCULATE PARASITE PARAMETERS ####
+names(data)
+#parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
+datao <- na.omit(data[,c(1,22:24,26:32)])
+ddata <- dispweight(datao[,-1])
+avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
+prev = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
+medin = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) 
+pa = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){ifelse(mean(x, na.rm =T)>0,1,0)}) 
+
+avab[is.na(avab)] <- 0
+prev[is.na(prev)] <- 0
+medin[is.na(medin)] <- 0
+
+#### PARASITE INDEX ####
+PI <- 1:nrow(data)
+for(j in 1:nrow(data)){
+  PI[j] <- 
+    max(data$Gyr[j]/sd(data$Gyr, na.rm=T))*(data$Gyr[j]/sd(data$Gyr, na.rm=T))
+  + max(data$Tri[j]/sd(data$Tri, na.rm=T))*(data$Tri[j]/sd(data$Tri, na.rm=T))
+  + max(data$Glu[j]/sd(data$Glu, na.rm=T))*(data$Glu[j]/sd(data$Glu, na.rm=T))
+  + max(data$Con[j]/sd(data$Con, na.rm=T))*(data$Con[j]/sd(data$Con, na.rm=T))
+  + max(data$CysL[j]/sd(data$CysL, na.rm=T))*(data$CysL[j]/sd(data$CysL, na.rm=T))
+  + max(data$Pro[j]/sd(data$Pro, na.rm=T))*(data$Pro[j]/sd(data$Pro, na.rm=T))
+  + max(data$Aca[j]/sd(data$Aca, na.rm=T))*(data$Aca[j]/sd(data$Aca, na.rm=T))
+  + max(data$Cam[j]/sd(data$Cam, na.rm=T))*(data$Cam[j]/sd(data$Cam, na.rm=T))
+  + max(data$Ang[j]/sd(data$Ang, na.rm=T))*(data$Ang[j]/sd(data$Ang, na.rm=T))
+  + max(data$CisI[j]/sd(data$CisI, na.rm=T))*(data$CisI[j]/sd(data$CysI, na.rm=T))
+}
+
+PI_ecto <- 1:nrow(data)
+for(j in 1:nrow(data)){
+  PI_ecto[j] <- 
+    max(data$Gyr[j]/sd(data$Gyr, na.rm=T))*(data$Gyr[j]/sd(data$Gyr, na.rm=T))
+  + max(data$Tri[j]/sd(data$Tri, na.rm=T))*(data$Tri[j]/sd(data$Tri, na.rm=T))
+  + max(data$Glu[j]/sd(data$Glu, na.rm=T))*(data$Glu[j]/sd(data$Glu, na.rm=T))
+}
+
+#test whether parasite infection depends on the effect of the environment on condition
+
+names(environment)[1] <- "site"
+environment[,"site"]
+environment$site <- factor(environment$site, levels = c("SITE 1","SITE 2","SITE 3","SITE 4","SITE 5","SITE 6","SITE 7","SITE 9","SITE 11","SITE 12","SITE 13","SITE 14","SITE 15","SITE 16","SITE 17","SITE 18","SITE 19","SITE 20","SITE 21","SITE 22","SITE 23","SITE 24","SITE 26","SITE 28","SITE 29","SITE 30","SITE 31","SITE 32","SITE 33","SITE 34","SITE 35","SITE 36","SITE 38","SITE 39","SITE 40","SITE 41","SITE 42"))
+spavar$site <- as.factor(spavar$site)
+levels(spavar$site) <- levels(environment$site)
+levels(data$site) <- levels(environment$site)
+all_data_x <- merge(data, environment, by = "site")
+all_data <- merge(all_data_x, spavar, by = "site")
+names(all_data)
+pca_env <- prcomp(all_data[,c("T_av", "O2_sat_av", "Con_av", "COD_av", "NH4._av", "Nt_av")])
+pcaenv <- pca_env$x[, 1]
+all_data$pcaenv <- pcaenv
+library(nlme)
+model <- lme(PI ~ pcaenv*SMI, random=~1|site, data=all_data, na.action = na.omit)
+model
+summary(model)
+
+all_data2 <- na.exclude(all_data[,c("PI_ecto", "Con_av", "length", "SMI", "site", "netcen.x", "updist.x")])
+all_data$netcen
+colnames(all_data)
+library(piecewiseSEM)
+
+psem1 <- psem(
+  lme(length ~ netcen.x + Con_av, random=~1|site, data=all_data2),
+  lme(Con_av ~ netcen.x, random=~1|site, data = all_data2),
+  lme(PI_ecto ~ length, random=~1|site, data = all_data2)
+)
+summary(psem1, aicc=TRUE)
+AIC(psem1, aicc=TRUE)
+
+psem2 <- psem(
+  lme(SMI ~ netcen.x + Con_av, random=~1|site, data=all_data2),
+  lme(Con_av ~ netcen.x, random=~1|site, data = all_data2),
+  lme(PI_ecto ~ SMI, random=~1|site, data = all_data2)
+)
+summary(psem2, aicc=TRUE)
+AIC(psem2, aicc=TRUE)
+
+######################
+#### 1. Condition ####
+######################
 
 # Effect of environment (average) on host condition
 avcondition <- aggregate(data$SMI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
@@ -148,20 +228,6 @@ ggplot(predict, aes(x, predicted)) +
         axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 dev.off()
 
-
-#### CALCULATE PARAMETERS ####
-names(data)
-#parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
-datao <- na.omit(data[,c(1,22:24,26:32)])
-ddata <- dispweight(datao[,-1])
-avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
-prev = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
-medin = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) 
-pa = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){ifelse(mean(x, na.rm =T)>0,1,0)}) 
-
-avab[is.na(avab)] <- 0
-prev[is.na(prev)] <- 0
-medin[is.na(medin)] <- 0
 
 #### Gyrodactylus ####
 #### Average abundance ####
@@ -693,3 +759,15 @@ PIP <- cbind(PIP,pip[2:13,1]*sign(coef.model$postmean[2:13]))
 write.matrix(PIP, file="PIP.txt", sep="\t")
 table <- as.data.frame(PIP)
 write.table(table, file='table.txt', sep="\t")
+
+
+
+
+
+
+
+
+
+#Structural Equation Model
+library(piecewiseSEM)
+

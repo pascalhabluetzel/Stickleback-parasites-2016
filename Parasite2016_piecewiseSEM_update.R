@@ -5,9 +5,9 @@ setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
 
 #install.packages("magrittr")
 library(magrittr)
-install.packages("dplyr")
-install.packages("ellipsis")
-install.packages("vctrs")
+#install.packages("dplyr")
+#install.packages("ellipsis")
+#install.packages("vctrs")
 library(dplyr)
 
 env <- read.csv("Environment_R.csv", sep=';')
