@@ -1,5 +1,5 @@
 #ignore this first line
-
+rm(list=ls()) #empty environment
 
 #The script runs on R v. 4.0.2
 
@@ -13,6 +13,8 @@ library(MASS) # for step-wise model selection
 library(car) # for VIF
 library(BAS) # for Bayesian models
 library(dplyr)
+library(nlme) # for linear mixed effect models
+library(piecewiseSEM) # for SEM
 
 
 ##########################
@@ -20,14 +22,17 @@ library(dplyr)
 ##########################
 
 #### READ AND PREPARE DATA ####
+#parasite data
 #setwd('C:/Users/u0113095/Google Drive/PhD/2 Parasite/2016/Analysis_2020/Github/Data')
 setwd('C:/Users/pascalh/Documents/GitHub/Stickleback-parasites-2016')
 data <- read.csv("data_2016_2303.csv", sep=';')
 data$site <- as.factor(data$site)
+#environmental data (VMM)
 environment <- read.csv("Environment_update.csv", sep=';')
 spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
 plot(spavar$netcen); plot(density(spavar$netcen))
 plot(spavar$updist); plot(density(spavar$updist))
+#environmental data (from field observations)
 field_data <- read.csv("field_data.csv", sep=',')
 environment2 <- cbind(environment[,c(49,52:53,55,57,60,63)], field_data[-c(8,10,25,27,37),33:34], spavar[,c(2,3)])
 environment2$pool_riffle <- as.factor(environment2$pool_riffle)
@@ -42,8 +47,8 @@ colnames(PIP) <- c("Condition", "Length", "Gyrodactylus abundance", "Gyrodactylu
 #### CALCULATE PARASITE PARAMETERS ####
 names(data)
 #parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
-datao <- na.omit(data[,c(1,22:24,26:32)])
-ddata <- dispweight(datao[,-1])
+datao <- na.omit(data[,c(1,22:24,26:32)]) #remove fish without parasite counts
+ddata <- dispweight(datao[,-1]) #correct for overdispersion of the parasite count data
 avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
 prev = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
 medin = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) 
@@ -88,34 +93,54 @@ levels(data$site) <- levels(environment$site)
 all_data_x <- merge(data, environment, by = "site")
 all_data <- merge(all_data_x, spavar, by = "site")
 names(all_data)
+
 pca_env <- prcomp(all_data[,c("T_av", "O2_sat_av", "Con_av", "COD_av", "NH4._av", "Nt_av")])
 pcaenv <- pca_env$x[, 1]
 all_data$pcaenv <- pcaenv
-library(nlme)
+
 model <- lme(PI ~ pcaenv*SMI, random=~1|site, data=all_data, na.action = na.omit)
 model
 summary(model)
 
-all_data2 <- na.exclude(all_data[,c("PI_ecto", "Con_av", "length", "SMI", "site", "netcen.x", "updist.x")])
+
+all_data1 <- na.exclude(all_data[,c("PI", "SMI", "site", "netcen.x", "pcaenv")])
 all_data$netcen
 colnames(all_data)
-library(piecewiseSEM)
 
 psem1 <- psem(
-  lme(length ~ netcen.x + Con_av, random=~1|site, data=all_data2),
-  lme(Con_av ~ netcen.x, random=~1|site, data = all_data2),
-  lme(PI_ecto ~ length, random=~1|site, data = all_data2)
+  lme(PI ~ pcaenv + SMI, random=~1|site, data=all_data1),
+  lme(SMI ~ pcaenv, random=~1|site, data = all_data1)
 )
+
+basisSet(psem1)
 summary(psem1, aicc=TRUE)
 AIC(psem1, aicc=TRUE)
 
+all_data2 <- na.exclude(all_data[,c("PI_ecto", "Con_av", "length", "SMI", "site", "netcen.x", "updist.x", "pcaenv")])
+all_data$netcen
+colnames(all_data)
+
 psem2 <- psem(
-  lme(SMI ~ netcen.x + Con_av, random=~1|site, data=all_data2),
-  lme(Con_av ~ netcen.x, random=~1|site, data = all_data2),
-  lme(PI_ecto ~ SMI, random=~1|site, data = all_data2)
+  lme(PI_ecto ~ pcaenv + SMI, random=~1|site, data=all_data2),
+  lme(SMI ~ pcaenv, random=~1|site, data = all_data2)
 )
+
+basisSet(psem2)
+plot(all_data2$netcen.x, all_data2$pcaenv)
 summary(psem2, aicc=TRUE)
 AIC(psem2, aicc=TRUE)
+
+all_data3 <- na.exclude(all_data[,c("PI_endo", "SMI", "site", "netcen.x", "pcaenv")])
+all_data$netcen
+colnames(all_data)
+
+psem3 <- psem(
+  lme(PI_endo ~ pcaenv + SMI, random=~1|site, data=all_data3),
+  lme(SMI ~ pcaenv, random=~1|site, data = all_data3)
+)
+
+summary(psem3, aicc=TRUE)
+AIC(psem3, aicc=TRUE)
 
 ######################
 #### 1. Condition ####
