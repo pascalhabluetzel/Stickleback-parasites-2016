@@ -9,17 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Description
+## 1. Description
 
 This R Markdown document describes the analyses performed for the manuscript entitled "Environmental pollution correlates with parasite infection across a riverine landscape" by Io S. Deflem, Seppe Marchand, Federico C.F. Calboli, Joost A.M. Raeymaekers, Filip A.M. Volckaert and Pascal I. Hablützel.
 
 The analyses were run in R 4.1.2
 
-## Study area and sampling
+## 2. Study area and sampling
 
 Up to thirty 0+ three-spined sticklebacks were sampled at 37 locations in the Dijle and Demer basins in Belgium during autumn 2016 under a permit of the Flemish Agency Nature and Forest (Fig. 1). Both basins together cover a continuous surface area of 3,624 km² with the furthest two sampling sites being located 117 km apart (distance measured along rivers). All locations included small and relatively slow flowing streams (drop off from highest to lowest point is 18 m) covering a wide range of ecological, hydromorphological, and physico-chemical characteristics. Fish were caught using a dip net.
 
-## Setting up working environment
+## 3. Setting up working environment
 
 ```{r}
 # Empty environment
@@ -29,21 +29,38 @@ rm(list=ls())
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # requires installation of package "rstudioapi"
 ```
 
-## Loading and preparing host and parasite data
+## 4 Loading and preparing host and parasite data
 
-Fish were euthanized with a lethal dose of MS222 on the day of capture, following directions of the KU Leuven Animal Ethics Commission, and stored at -20 °C. Fish were kept in separate containers per site at all times. Lab based parasite screening of thawed fish involved placing individual fish in 5 or 10 ml cryo-tubes with 1 or 2 ml of distilled water. Following a vigorous shake of 10 s, the liquid was poured into a Petri dish and ectoparasites were identified and counted using a stereomicroscope. Fish were rinsed and checked again for the presence of ectoparasites on skin and fins. The intestines were examined for endoparasites. Before dissection, fish weight (± 0.1 mg) and standard length (± 1 mm) were recorded. To quantify body condition, we calculated the scaled mass index (SMI; Maceda-Veiga et al., 2014; Peig & Green, 2009) using the following formula, with Wi and Li being the weight of each fish, L0 the arithmetic mean, and bSMA the scaling component (calculated as the slope of the standardised major axis (SMA) regression on ln‐transformed data). Sex was determined during dissection by inspection of gonad development. A total of 668 fish were dissected, which amounts to approximately 20 fish per location, with the exception of seven locations where only 10 fish were screened for the presence of macroparasites. Ecto- and endoparasites were morphologically identified to species level whenever possible.
+Fish were euthanized with a lethal dose of MS222 on the day of capture, following directions of the KU Leuven Animal Ethics Commission, and stored at -20 °C. Fish were kept in separate containers per site at all times. Lab based parasite screening of thawed fish involved placing individual fish in 5 or 10 ml cryo-tubes with 1 or 2 ml of distilled water. Following a vigorous shake of 10 s, the liquid was poured into a Petri dish and ectoparasites were identified and counted using a stereomicroscope. Fish were rinsed and checked again for the presence of ectoparasites on skin and fins. The intestines were examined for endoparasites. Before dissection, fish weight (± 0.1 mg) and standard length (± 1 mm) were recorded. To quantify body condition, we calculated the scaled mass index (SMI; Maceda-Veiga et al., 2014; Peig & Green, 2009). Sex was determined during dissection by inspection of gonad development. A total of 668 fish were dissected, which amounts to approximately 20 fish per location, with the exception of seven locations where only 10 fish were screened for the presence of macroparasites. Ecto- and endoparasites were morphologically identified to species level whenever possible.
 
 ```{r}
 # Parasite data
 data <- read.csv("data_2016_2303.csv", sep=';')
 data$site <- as.factor(data$site)
 
+# Calculate parasite parameters
+names(data)
+#parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
+datao <- na.omit(data[,c(1,22:24,26:32)]) #remove fish without parasite counts
+
+library(vegan)
+
+ddata <- dispweight(datao[,-1]) #correct for overdispersion of the parasite count data
+avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
+prev = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
+medin = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) 
+pa = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){ifelse(mean(x, na.rm =T)>0,1,0)}) 
+
+avab[is.na(avab)] <- 0
+prev[is.na(prev)] <- 0
+medin[is.na(medin)] <- 0
+
 # Host condition data
 avcondition <- aggregate(data$SMI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
 avlength <- aggregate(data$length, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
 ```
 
-## Loading and preparing environmental and spatial data
+## 5 Loading and preparing environmental and spatial data
 
 Physico-chemical data was provided by the Flemish Environmental Agency (VMM). Each fish sampling site was chosen at or near an environmental monitoring site of VMM. Water parameters include water temperature, pH, conductivity, dissolved oxygen (O2), saturation with dissolved oxygen, and Biochemical and Chemical Oxygen Demand (BOD and COD). Nutrient related water parameters include measurements of nitrate (NO3-), nitrite (NO2-), Kjeldahl nitrogen (KjN), total nitrogen (Nt), ammonium (NH4+), and total phosphorus (Pt). Following removal of strong collinear variables (significant correlation with P < 0.05 and Pearson correlation coefficient > |0.6|; Dormann et al., 2013), six environmental physico-chemical variables were retained (temperature, conductivity, COD, saturation with dissolved oxygen, ammonium, and total nitrogen), representing different aspects of water quality. For each water parameter, the average value of the year before sampling was calculated based on monthly monitoring data. Additionally, two hydromorphological variables were included: Tthe presence of a pool-riffle pattern and meanders were noted during field sampling and these parameters were included as binary variables (presence/absence) for a representation of abiotic habitat structure. Spatial (waterway) distances were calculated using the Network Analyst toolbox in ArcGIS. Upstream distance was defined as the maximal upstream distance from the sampling location. Network peripherality was calculated as the average waterway distance of a sampling location to all other locations. Hence, a total of eight environmental and two spatial variables were included in the statistical analysis.
 
@@ -65,7 +82,7 @@ updist <- spavar$updist
 
 We used univariate generalized linear models to investigate how landscape-level effects modify infection patterns of individual parasite taxa, host size and condition. We kept the statistical models linear (as opposed to polynomial) and only considered main effects (i.e. no interaction terms) because we had no prior information from this study system that more complex models were necessary and because the study design with (only) 37 sampling sites was not intended for non-linear models. Ten explanatory variables (temperature, conductivity, COD, saturation with dissolved oxygen, ammonium, total nitrogen, the presence of pool-riffle patterns and meanders, upstream distance, and network peripherality) were included. 
 
-## Bayesian Model Averaging
+## 6. Bayesian Model Averaging
 
 We used generalized linear models in a Bayesian Model Averaging (BMA) approach to understand how infection with individual parasite taxa relate to host characteristics (host size and condition), environmental conditions as well as spatial distance among sampling sites. Models were run using the R package BAS v1.5.5 (Clyde, 2020). BMA estimates the importance of parameters by averaging the estimates of the various models, each weighted by its model probability and accounts for model uncertainty (Hinne et al., 2020).
 
@@ -79,7 +96,7 @@ colnames(PIP) <- c("Condition", "Length", "Gyrodactylus abundance", "Gyrodactylu
                    "PI", "PI_ecto", "PI_endo")  
 ```
 
-# Variation in host condition
+# 6.1 Variation in host condition
 
 ```{r}
 bas.model <- bas.lm(avcondition ~  T_av + O2_sat_av + Con_av + COD_av + NH4._av + Nt_av + 
@@ -98,7 +115,7 @@ PIP[c(3:12),1] <- pip[2:11,1]*sign(coef.model$postmean[2:11])
 #coef.model$postmean[2:11]
 ```
 
-## Variation in host length
+# 6.2 Variation in host length
 
 ```{r}
 bas.model <- bas.lm(avlength ~ T_av + O2_sat_av + Con_av + COD_av + NH4._av + Nt_av + 
@@ -148,4 +165,183 @@ dev.off()
 figure_avlength
 ```
 
+# 6.3 Variation in Gyrodactylus infection
+# 6.3.1 Mean abundance
 
+```{r}
+bas.model <- bas.lm(avab$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
+r = bas.model$Y - yhat #these are the model residuals
+library(car)
+qqPlot(r)
+plot(bas.model)
+summary(bas.model)
+image(bas.model, rotate=F)
+coef.model <- coef(bas.model)
+abs(coef.model$postmean)-2*coef.model$postsd > 0
+confint(coef.model)
+plot(confint(coef.model, parm = 2:11))
+confint <- confint(coef.model, parm = 2:11)
+write.table(confint, 'GyroAA.txt', sep="\t")
+pip <- summary(bas.model)
+PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+```
+
+# 6.3.1.1 Prediction plot for marginal effect of host length on average Gyrodactylus infection
+
+```{r}
+# Prediction plot
+newdata = as.data.frame(cbind(rep(mean(avlength), 37),
+                rep(mean(avcondition), 37),
+                rep(mean(environment2$T_av), 37), 
+                rep(mean(environment2$O2_sat_av), 37),
+                rep(mean(environment2$Con_av), 37),
+                rep(mean(environment2$COD_av), 37),
+                rep(mean(environment2$NH4._av), 37),
+                rep(mean(environment2$Nt_av), 37),
+                rep(1, 37),
+                rep(1, 37),
+                rep(mean(netcen), 37),
+                rep(mean(updist), 37)))
+colnames(newdata) <- c("avlength", "avcondition", "T_av", "O2_sat_av", "Con_av", "COD_av", "NH4._av", "Nt_av", "pool_riffle", "meander", "netcen", "updist")
+newdata[,"pool_riffle"] <- as.factor(newdata[,"pool_riffle"]); newdata[,"meander"] <- as.factor(newdata[,"meander"])
+newdata1 <- newdata; newdata1[,"avlength"] <- avlength
+BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+ggplot(environment2, aes(avlength, BMA$fit)) +
+  theme_bw() +
+  geom_line(color="red", size=1) +
+  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_point(data = environment2, aes(x=avlength, y=avab$Gyr)) +
+  labs(x=expression("Average host length [mm]"), y=expression("Average Gyrodactylus count")) +
+  theme(axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+# 6.3.1.2 Prediction plot for marginal effect of COD on average Gyrodactylus infection
+
+```{r}
+newdata1 <- newdata; newdata1[,"COD_av"] <- environment2$COD_av
+BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+ggplot(environment2, aes(COD_av, BMA$fit)) +
+  theme_bw() +
+  geom_line(color="red", size=1) +
+  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_point(data = environment2, aes(x=COD_av, y=avab$Gyr)) +
+  labs(x=expression("COD"), y=expression("Average Gyrodactylus count")) +
+  theme(axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+# 6.3.2.3 Prediction plot for marginal effect of total nitrogen on average Gyrodactylus infection
+
+```{r}
+newdata1 <- newdata; newdata1[,"Nt_av"] <- environment2$Nt_av
+BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+ggplot(environment2, aes(Nt_av, BMA$fit)) +
+  theme_bw() +
+  geom_line(color="red", size=1) +
+  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_point(data = environment2, aes(x=Nt_av, y=avab$Gyr)) +
+  labs(x=expression("Nt"), y=expression("Average Gyrodactylus count")) +
+  theme(axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+## 7. BORAL analysis
+
+Model-based analysis of multivariate abundance data using Bayesian Markov chain Monte Carlo methods for parameter estimation
+
+# 7.1 BORAL analysis for average abundances of parasites
+
+```{r}
+library(boral)
+
+data$Site <- as.factor(data$site)
+levels(data$site) <- levels(as.factor(environment2$Site))
+data_m <- merge(data, environment2, by = "Site")
+data_all <- na.omit(data_m) 
+names(data_all)
+
+avcondition <- aggregate(data$SMI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+avlength <- aggregate(data$length, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+
+y <- round(cbind(avab$Gyr, avab$Tri, avab$Glu, avab$Con, avab$Ang))
+y <- round(cbind(medin$Gyr, medin$Tri, medin$Glu, medin$Con, medin$Ang))
+X <- cbind(avcondition,
+           avlength,
+           environment2$T_av,
+           environment2$O2_sat_av,
+           environment2$Con_av,
+           environment2$COD_av, 
+           environment2$NH4._av, 
+           environment2$Nt_av, 
+           environment2$netcen, 
+           environment2$updist, 
+           as.numeric(environment2$pool_riffle), 
+           as.numeric(environment2$meander))
+colnames(X) <- c("avcondition", "avlength", "T", "O2", "Con", "COD", "NH4", "Nt", "netcen", "updist", "pool_riffle", "meander")
+
+example_mcmc_control <- list(n.burnin = 1000, n.iteration = 10000, n.thin = 1)
+testpath <- file.path(tempdir(), "jagsboralmodel.txt")
+paramod <- boral(y, X = X,
+                      family = "negative.binomial",
+                      mcmc.control = example_mcmc_control,
+                      model.name = testpath,
+                      lv.control = list(num.lv = 2, type = "independent"),
+                      save.model = TRUE)
+
+plot(paramod)
+coefsplot(covname = "avcondition", object = paramod) #Condition
+coefsplot(covname = "avlength", object = paramod) #Length
+coefsplot(covname = "T", object = paramod) #Temperature
+coefsplot(covname = "O2", object = paramod) #Oxygen
+coefsplot(covname = "Con", object = paramod) #Conductivity
+coefsplot(covname = "COD", object = paramod) #COD
+coefsplot(covname = "NH4", object = paramod) #NH4
+coefsplot(covname = "Nt", object = paramod) #Nt
+coefsplot(covname = "netcen", object = paramod) #netcen
+coefsplot(covname = "updist", object = paramod) #updist
+coefsplot(covname = "pool_riffle", object = paramod) #poolriffle
+coefsplot(covname = "meander", object = paramod) #meander
+
+envcors <- get.enviro.cor(paramod)
+rescors <- get.residual.cor(paramod)
+library(corrplot)
+corrplot(envcors$sig.cor, type = "lower", diag = FALSE, title = "Correlations due to covariates", mar = c(3,0.5,2,1), tl.srt = 45)
+corrplot(rescors$sig.cor, type = "lower", diag = FALSE, title = "Residual correlations", mar = c(3,0.5,2,1), tl.srt = 45)
+```
+
+
+# 7.1 BORAL analysis for median infection intensities of parasites
+
+```{r}
+y <- round(cbind(medin$Gyr, medin$Tri, medin$Glu, medin$Con, medin$Ang))
+paramod <- boral(y, X = X,
+                      family = "negative.binomial",
+                      mcmc.control = example_mcmc_control,
+                      model.name = testpath,
+                      lv.control = list(num.lv = 2, type = "independent"),
+                      save.model = TRUE)
+
+plot(paramod)
+coefsplot(covname = "avcondition", object = paramod) #Condition
+coefsplot(covname = "avlength", object = paramod) #Length
+coefsplot(covname = "T", object = paramod) #Temperature
+coefsplot(covname = "O2", object = paramod) #Oxygen
+coefsplot(covname = "Con", object = paramod) #Conductivity
+coefsplot(covname = "COD", object = paramod) #COD
+coefsplot(covname = "NH4", object = paramod) #NH4
+coefsplot(covname = "Nt", object = paramod) #Nt
+coefsplot(covname = "netcen", object = paramod) #netcen
+coefsplot(covname = "updist", object = paramod) #updist
+coefsplot(covname = "pool_riffle", object = paramod) #poolriffle
+coefsplot(covname = "meander", object = paramod) #meander
+
+envcors <- get.enviro.cor(paramod)
+rescors <- get.residual.cor(paramod)
+library(corrplot)
+corrplot(envcors$sig.cor, type = "lower", diag = FALSE, title = "Correlations due to covariates", mar = c(3,0.5,2,1), tl.srt = 45)
+corrplot(rescors$sig.cor, type = "lower", diag = FALSE, title = "Residual correlations", mar = c(3,0.5,2,1), tl.srt = 45)
+```
