@@ -58,6 +58,51 @@ medin[is.na(medin)] <- 0
 # Host condition data
 avcondition <- aggregate(data$SMI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
 avlength <- aggregate(data$length, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+
+# Parasite index
+sgyr <- 1:nrow(data)
+stri <- 1:nrow(data)
+sglu <- 1:nrow(data)
+scon <- 1:nrow(data)
+scysl <- 1:nrow(data)
+spro <- 1:nrow(data)
+saca <- 1:nrow(data)
+scam <- 1:nrow(data)
+sang <- 1:nrow(data)
+
+for(j in 1:nrow(data)){
+  sgyr[j] <- data$Gyr[j]/sd(data$Gyr, na.rm=T)
+  stri[j] <- data$Tri[j]/sd(data$Tri, na.rm=T)
+  sglu[j] <- data$Glu[j]/sd(data$Glu, na.rm=T)
+  scon[j] <- data$Con[j]/sd(data$Con, na.rm=T)
+  scysl[j] <- data$CysL[j]/sd(data$CysL, na.rm=T)
+  spro[j] <- data$Pro[j]/sd(data$Pro, na.rm=T)
+  saca[j] <- data$Aca[j]/sd(data$Aca, na.rm=T)
+  scam[j] <- data$Cam[j]/sd(data$Cam, na.rm=T)
+  sang[j] <- data$Ang[j]/sd(data$Ang, na.rm=T)
+}
+
+PI <- 1:nrow(data)
+for(j in 1:nrow(data)){
+  PI[j] <- 10/max(sgyr, na.rm=T)*sgyr[j] + 10/max(stri, na.rm=T)*stri[j] + 10/max(sglu, na.rm=T)*sglu[j] +
+    10/max(scon, na.rm=T)*scon[j] + 10/max(scysl, na.rm=T)*scysl[j] + 10/max(spro, na.rm=T)*spro[j] +
+    10/max(saca, na.rm=T)*saca[j] + 10/max(scam, na.rm=T)*scam[j] + 10/max(sang, na.rm=T)*sang[j]
+}
+
+PI_ecto <- 1:nrow(data)
+for(j in 1:nrow(data)){
+    PI_ecto[j] <- 10/max(sgyr, na.rm=T)*sgyr[j] + 10/max(stri, na.rm=T)*stri[j] + 10/max(sglu, na.rm=T)*sglu[j]
+}
+
+PI_endo <- 1:nrow(data)
+for(j in 1:nrow(data)){
+  PI_endo[j] <-     10/max(scon, na.rm=T)*scon[j] + 10/max(scysl, na.rm=T)*scysl[j] + 10/max(spro, na.rm=T)*spro[j] +
+    10/max(saca, na.rm=T)*saca[j] + 10/max(scam, na.rm=T)*scam[j] + 10/max(sang, na.rm=T)*sang[j]
+}
+
+avPI <- aggregate(PI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+avPI_ecto <- aggregate(PI_ecto, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+avPI_endo <- aggregate(PI_endo, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
 ```
 
 ## 5 Loading and preparing environmental and spatial data
@@ -435,8 +480,29 @@ pip <- summary(bas.model)
 PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 
 #Gyrodactylus prevalence
+bas.model <- bas.lm(prev$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),4] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
 #Gyrodactylus infection intensity
+bas.model <- bas.lm(medin$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),5] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
 #Trichodina abundance
+bas.model <- bas.lm(avab$Tri ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),6] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
 #Trichodina prevalence
 bas.model <- bas.lm(prev$Tri ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander + netcen + 
@@ -478,8 +544,29 @@ pip <- summary(bas.model)
 PIP[c(1:12),11] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 
 #PI
+bas.model <- bas.lm(avPI ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),12] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
 #PI ecto
+bas.model <- bas.lm(avPI_ecto ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),13] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
 #PI endo
+bas.model <- bas.lm(aVPI_endo ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),14] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
 
 library(gplots)
 
