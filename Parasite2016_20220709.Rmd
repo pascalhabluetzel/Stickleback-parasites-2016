@@ -710,7 +710,6 @@ pip <- summary(bas.model)
 PIP[c(1:12),14] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
 
-
 ## 7. BORAL analysis
 
 Model-based analysis of multivariate abundance data using Bayesian Markov chain Monte Carlo methods for parameter estimation
@@ -805,4 +804,102 @@ rescors <- get.residual.cor(paramod)
 library(corrplot)
 corrplot(envcors$sig.cor, type = "lower", diag = FALSE, title = "Correlations due to covariates", mar = c(3,0.5,2,1), tl.srt = 45)
 corrplot(rescors$sig.cor, type = "lower", diag = FALSE, title = "Residual correlations", mar = c(3,0.5,2,1), tl.srt = 45)
+```
+
+# 8. Multivariate analysis
+
+## 8.1 Component communities
+
+```{r}
+# Component communities: Bray-Curtis dissimilarities based on Hellinger transformed average abundance data
+spe.hel_bray <- vegdist(decostand(avab[,-1], na.rm=T, method="hellinger"), method="bray", na.rm=T)
+
+# Check whether Euclidean and Bray-Curtis distances are comparable
+spe.hel_euc <- vegdist(decostand(avab[,-1], na.rm=T, method="hellinger"), method="euc", na.rm=T)
+plot(spe.hel_bray, spe.hel_euc)
+mantel(spe.hel_bray, spe.hel_euc)
+```
+
+```{r}
+adonis(spe.hel_bray ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2)
+```
+
+```{r}
+# environmental variables
+env_select <- environment2[,c("T_av", "O2_sat_av", "Con_av", "COD_av", "NH4._av", "Nt_av", "pool_riffle", "meander", "netcen", "updist")]
+env_select$pool_riffle <- as.numeric(env_select$pool_riffle)
+env_select$meander <- as.numeric(env_select$meander)
+
+pca <- prcomp(env_select, scale.=T)
+summary(pca)
+plot(pca)
+biplot(pca)
+```
+
+```{r}
+# Assess the effect of environmental variables on parasite component community dissimilarities using distance based RDA
+spe.rda <- dbrda(spe.hel_bray ~ T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data = env_select)
+plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
+summary(spe.rda)
+anova(spe.rda)
+anova(spe.rda, by="term")
+anova.cca(spe.rda, step=1000);
+anova.cca(spe.rda, step=1000, by="term");
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
+```
+
+## 8.2 Infra-communities
+
+```{r}
+# Infracommunities: Bray-Curtis dissimilarities are calculated at the individual host level Hellinger-transformed parasite data and then averaged within site
+# A dummy parasite species is added to avoid problems with non-infected fishes
+data_infra <- na.omit(data[,c(1,22:24,26:32)])
+data_infra_disp <- dispweight(data_infra[,-1])
+braycurtis <- vegdist(decostand(cbind(data_infra_disp,rep(1,nrow(data_infra))), na.rm=T, method="hellinger"), method="bray", na.rm=T)
+meandist_bray <- meandist(braycurtis, data_infra[,1])
+
+# Check whether Euclidean and Bray-Curtis distances are comparable
+braycurtis <- vegdist(decostand(cbind(data_infra_disp,rep(1,nrow(data_infra))), na.rm=T, method="hellinger"), method="bray", na.rm=T)
+meandist_bray <- meandist(braycurtis, data_infra[,1])
+euc <- vegdist(decostand(cbind(data_infra_disp,rep(1,nrow(data_infra))), na.rm=T, method="hellinger"), method="euc", na.rm=T)
+meandist_euc <- meandist(euc, data_infra[,1])
+plot(meandist_bray[1:37,1:37], meandist_euc[1:37,1:37])
+mantel(meandist_bray[1:37,1:37], meandist_euc[1:37,1:37])
+```
+```{r}
+adonis(meandist_bray ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2)
+```
+
+```{r}
+# environmental variables
+env_select <- environment2[,c("T_av", "O2_sat_av", "Con_av", "COD_av", "NH4._av", "Nt_av", "pool_riffle", "meander", "netcen", "updist")]
+env_select$pool_riffle <- as.numeric(env_select$pool_riffle)
+env_select$meander <- as.numeric(env_select$meander)
+
+pca <- prcomp(env_select, scale.=T)
+summary(pca)
+plot(pca)
+biplot(pca)
+```
+
+```{r}
+# Assess the effect of environmental variables on parasite infracommunity dissimilarities using distance based RDA
+spe.rda <- dbrda(meandist_bray ~ T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data = env_select)
+plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
+summary(spe.rda)
+anova(spe.rda)
+anova(spe.rda, by="term")
+anova.cca(spe.rda, step=1000);
+anova.cca(spe.rda, step=1000, by="term");
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
 ```
