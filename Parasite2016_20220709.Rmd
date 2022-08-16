@@ -614,7 +614,6 @@ avcondition <- aggregate(data$SMI, by = list(data[,1]), function(x){mean(x, na.r
 avlength <- aggregate(data$length, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
 
 y <- round(cbind(avab$Gyr, avab$Tri, avab$Glu, avab$Con, avab$Ang))
-y <- round(cbind(medin$Gyr, medin$Tri, medin$Glu, medin$Con, medin$Ang))
 X <- cbind(avcondition,
            avlength,
            environment2$T_av,
