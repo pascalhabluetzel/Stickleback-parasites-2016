@@ -139,8 +139,8 @@ library(BAS)
 
 # Make a matrix for PIP (Posterior Inclusion Probability)
 PIP <- matrix(nrow=12, ncol=14)
-rownames(PIP) <- c("Condition", "Length", "Temperature", "Oxygen saturation", "Conductivity", "COD", "Ammonium", "Total nitrogen", "Pool riffle pattern", "Meander", "Network centrality", "Upstream distance")
-colnames(PIP) <- c("Condition", "Length", "Gyrodactylus abundance", "Gyrodactylus prevalence", "Gyrodactylus infection intensity", "Trichodina abundance", "Trichodina prevalence", "Trichodina infection intensity", "Glugea", "Contracaecum", "Aguillicola",
+rownames(PIP) <- c("Host condition", "Host size", "Temperature", "Oxygen saturation", "Conductivity", "COD", "Ammonium", "Total nitrogen", "Pool riffle pattern", "Meander", "Network peripherality", "Upstream distance")
+colnames(PIP) <- c("Host condition", "Host size", "Gyrodactylus abundance", "Gyrodactylus prevalence", "Gyrodactylus infection intensity", "Trichodina abundance", "Trichodina prevalence", "Trichodina infection intensity", "Glugea", "Contracaecum", "Aguillicola",
                    "PI", "PI ecto", "PI endo")  
 ```
 
@@ -271,7 +271,7 @@ heatmap.2(PIP[,-c(9,10,11)],
           notecol="white",
           density.info="none",
           trace="none",
-          margins =c(10,6),
+          margins =c(10,8),
           col=redblue(256),
           dendrogram="both",
           cexRow = 0.7,
@@ -841,17 +841,60 @@ biplot(pca)
 ```{r}
 # Assess the effect of environmental variables on parasite component community dissimilarities using distance based RDA
 spe.rda <- dbrda(spe.hel_bray ~ T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data = env_select)
+                     + NH4._av + Nt_av + pool_riffle + meander, data = env_select)
+anova(spe.rda)
+RsquareAdj(spe.rda)$adj.r.squared
+mod0 <- dbrda(spe.hel_bray ~ 1, env_select[,-c(9:10)])  # Model with intercept only  #edit_PH
+mod1 <- dbrda(spe.hel_bray ~ ., env_select[,-c(9:10)])  # Model with all explanatory variables  #edit_PH
+step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
+step.res$anova  # Summary table
+
 plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
 summary(spe.rda)
 anova(spe.rda)
 anova(spe.rda, by="term")
+
 anova.cca(spe.rda, step=1000);
 anova.cca(spe.rda, step=1000, by="term");
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
 ```
+
+## 8.1.2 Effect of space on component community structure
+
+```{r}
+# Same for spatial predictors
+spe.rda <- dbrda(spe.hel_bray ~ netcen + updist, data = env_select)
+anova(spe.rda)
+RsquareAdj(spe.rda)$adj.r.squared
+mod0 <- dbrda(spe.hel_bray ~ 1, env_select[,c(9:10)])  # Model with intercept only  #edit_PH
+mod1 <- dbrda(spe.hel_bray ~ ., env_select[,c(9:10)])  # Model with all explanatory variables  #edit_PH
+step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
+step.res$anova  # Summary table
+
+RsquareAdj(spe.rda)$adj.r.squared
+anova.cca(spe.rda, step=1000);
+anova.cca(spe.rda, step=1000, by="term");
+RsquareAdj(spe.rda)$adj.r.squared;
+RsquareAdj(spe.rda)$r.squared
+```
+
+## 8.1.3 Variation partitioning
+
+```{r}
+#Variation partitioning
+spe.varpart1 <- varpart(spe.hel_bray, env_select[,1:8], env_select[,9:10])
+plot(spe.varpart1,digits=2)
+spe.varpart1
+anova.cca(dbrda(spe.hel_bray ~ T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + Condition(netcen + updist),
+                data=env_select), step=1000)
+
+anova.cca(dbrda(spe.hel_bray ~ netcen + updist+
+                  Condition(T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander), data=env_select), step=1000)
+```
+
 
 ## 8.2 Infra-communities
 
@@ -889,17 +932,50 @@ plot(pca)
 biplot(pca)
 ```
 
+## 8.2.1 Effect of environment on infracommunity structure
+
 ```{r}
 # Assess the effect of environmental variables on parasite infracommunity dissimilarities using distance based RDA
 spe.rda <- dbrda(meandist_bray ~ T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data = env_select)
+                     + NH4._av + Nt_av + pool_riffle + meander, data = env_select)
+anova(spe.rda)
+RsquareAdj(spe.rda)$adj.r.squared
+mod0 <- dbrda(meandist_bray ~ 1, env_select)  # Model with intercept only  #edit_PH
+mod1 <- dbrda(meandist_bray ~ ., env_select)  # Model with all explanatory variables  #edit_PH
+step.res <- ordiR2step(mod0, mod1, direction = "both",perm.max = 200)
+step.res$anova  # Summary table
+
+spe.rda <- dbrda(meandist_bray ~  Con_av + COD_av, env_select)
 plot(spe.rda, scaling = 1) # it is for technical reasons not possible to plot both site and species scores
 summary(spe.rda)
 anova(spe.rda)
 anova(spe.rda, by="term")
+```
+
+## 8.2.2 Effect of space on infracommunity structure
+
+```{r}
+spe.rda <- dbrda(meandist_bray ~ netcen + updist, data = env_select)
+anova(spe.rda)
+RsquareAdj(spe.rda)$adj.r.squared
 anova.cca(spe.rda, step=1000);
 anova.cca(spe.rda, step=1000, by="term");
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
+```
+
+## 8.2.3 Variation partitioning
+
+```{r}
+#Variation partitioning
+spe.varpart1 <- varpart(meandist_bray, env_select[,1:8], env_select[,9:10])
+plot(spe.varpart1,digits=2)
+spe.varpart1
+anova.cca(dbrda(meandist_bray ~ T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + Condition(netcen + updist),
+                data=env_select), step=1000)
+
+anova.cca(dbrda(meandist_bray ~ netcen + updist+
+                  Condition(T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander), data=env_select), step=1000)
 ```
