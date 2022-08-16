@@ -670,6 +670,21 @@ pip <- summary(bas.model)
 PIP[c(1:12),12] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
 
+# Prediction plot for marginal effect of COD on Individual Parasitation Index
+
+```{r}
+newdata1 <- newdata; newdata1[,"COD_av"] <- environment2$COD_av
+BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+ggplot(environment2, aes(COD_av, BMA$fit)) +
+  theme_bw() +
+  geom_line(color="red", size=1) +
+  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_point(data = environment2, aes(x=COD_av, y=avPI)) +
+  labs(x=expression("COD"), y=expression("Individual Parasitation Index")) +
+  theme(axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
 ## Variation in Individual Parasitation Index (only ectoparasites)
 
 ```{r}
@@ -689,6 +704,69 @@ confint <- confint(coef.model, parm = 2:11)
 pip <- summary(bas.model)
 PIP[c(1:12),13] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
+
+# Prediction plot for marginal effect of COD on Individual Parasitation Index (only ectoparasites)
+
+```{r}
+newdata1 <- newdata; newdata1[,"COD_av"] <- environment2$COD_av
+BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+ggplot(environment2, aes(COD_av, BMA$fit)) +
+  theme_bw() +
+  geom_line(color="red", size=1) +
+  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_point(data = environment2, aes(x=COD_av, y=avPI_ecto)) +
+  labs(x=expression("COD"), y=expression("Individual Parasitation Index (only ectoparasites)")) +
+  theme(axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+# Prediction plot for marginal effect of total nitrogen on Individual Parasitation Index (only ectoparasites)
+
+```{r}
+newdata1 <- newdata; newdata1[,"Nt_av"] <- environment2$Nt_av
+BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+ggplot(environment2, aes(Nt_av, BMA$fit)) +
+  theme_bw() +
+  geom_line(color="red", size=1) +
+  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_point(data = environment2, aes(x=Nt_av, y=avPI_ecto)) +
+  labs(x=expression("Total nitrogen"), y=expression("Individual Parasitation Index (only ectoparasites)")) +
+  theme(axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+# Prediction plot for marginal effect of conductivity on Individual Parasitation Index (only ectoparasites)
+
+```{r}
+newdata1 <- newdata; newdata1[,"Con_av"] <- environment2$Con_av
+BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+ggplot(environment2, aes(Con_av, BMA$fit)) +
+  theme_bw() +
+  geom_line(color="red", size=1) +
+  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_point(data = environment2, aes(x=Con_av, y=avPI)) +
+  labs(x=expression("Conductivity"), y=expression("Individual Parasitation Index (only ectoparasites)")) +
+  theme(axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+# Prediction plot for marginal effect of meanders on Individual Parasitation Index (only ectoparasites)
+
+```{r}
+newdata1 <- newdata; newdata1[,"meander"] <- environment2$meander
+BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+ggplot(environment2, aes(meander, BMA$fit)) +
+  theme_bw() +
+  #geom_line(color="red", size=1) +
+  #geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_point(data = environment2, aes(x=meander, y=avPI)) +
+  geom_boxplot(aes(lower = (BMA$fit-BMA$se.bma.fit), middle = BMA$fit, upper = (BMA$fit+BMA$se.bma.fit))) +
+  labs(x=expression("Meander"), y=expression("Individual Parasitation Index (only ectoparasites)")) +
+  theme(axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+```
+
 
 ## Variation in Individual Parasitation Index (only endoparasites)
 
