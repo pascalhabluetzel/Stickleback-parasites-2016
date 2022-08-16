@@ -141,6 +141,154 @@ colnames(PIP) <- c("Condition", "Length", "Gyrodactylus abundance", "Gyrodactylu
                    "PI", "PI ecto", "PI endo")  
 ```
 
+## 6.0.1 Figure
+
+```{r}
+PIP <- matrix(nrow=12, ncol=14)
+rownames(PIP) <- c("Condition", "Length", "Temperature", "Oxygen saturation", "Conductivity", "COD", "Ammonium", "Total nitrogen", "Pool riffle pattern", "Meander", "Network centrality", "Upstream distance")
+colnames(PIP) <- c("Condition", "Length", "Gyrodactylus abundance", "Gyrodactylus prevalence", "Gyrodactylus infection intensity", "Trichodina abundance", "Trichodina prevalence", "Trichodina infection intensity", "Glugea", "Contracaecum", "Aguillicola",
+                   "PI", "PI ecto", "PI endo")  
+
+#Condition
+bas.model <- bas.lm(avcondition ~ T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(3:12),1] <- pip[2:11,1]*sign(coef.model$postmean[2:11])
+
+#Length
+bas.model <- bas.lm(avlength ~ T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(3:12),2] <- pip[2:11,1]*sign(coef.model$postmean[2:11])
+
+#Gyrodactylus abundance
+bas.model <- bas.lm(avab$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#Gyrodactylus prevalence
+bas.model <- bas.lm(prev$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),4] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#Gyrodactylus infection intensity
+bas.model <- bas.lm(medin$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),5] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#Trichodina abundance
+bas.model <- bas.lm(avab$Tri ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),6] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#Trichodina prevalence
+bas.model <- bas.lm(prev$Tri ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),7] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#Trichodina infection intensity
+bas.model <- bas.lm(medin$Tri ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),8] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#Glugea
+bas.model <- bas.glm(pa$Glu ~  avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, betaprior=g.prior(100), family=binomial)
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),9] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#Contracaecum
+bas.model <- bas.glm(pa$Con ~  avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, betaprior=g.prior(100), family=binomial)
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),10] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#Anguillicola
+bas.model <- bas.glm(pa$Ang ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, betaprior=g.prior(100), family=binomial)
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),11] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#PI
+bas.model <- bas.lm(avPI ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),12] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#PI ecto
+bas.model <- bas.lm(avPI_ecto ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),13] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+
+#PI endo
+bas.model <- bas.lm(avPI_endo ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
+                       updist, data=environment2, prior="JZS")
+coef.model <- coef(bas.model)
+pip <- summary(bas.model)
+PIP[c(1:12),14] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+```
+
+```{r}
+library(gplots)
+
+x = round(PIP, digits=2)
+x[abs(PIP)<0.5] <- ""
+x[abs(PIP)>0.5] <- "+"
+heatmap.2(PIP[,-c(9,10,11)],
+          cellnote = x[,-c(9,10,11)],
+          #main = "Correlation",
+          notecex=1,
+          notecol="white",
+          density.info="none",
+          trace="none",
+          margins =c(10,6),
+          col=redblue(256),
+          dendrogram="both",
+          cexRow = 0.7,
+          cexCol = 0.7,
+          key.title = "PIP",
+          lhei = c(1,3),
+          lwid = c(0.5, 0.5),
+          #Colv="NA"
+          ) 
+
+```
+
+
 # 6.1 Variation in host condition
 
 ```{r}
@@ -234,7 +382,7 @@ pip <- summary(bas.model)
 PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
 
-# 6.3.1.1 Prediction plot for marginal effect of host length on average Gyrodactylus infection
+# 6.3.1.1 Prediction plot for marginal effect of host condition on average Gyrodactylus infection
 
 ```{r}
 # Prediction plot
@@ -252,14 +400,14 @@ newdata = as.data.frame(cbind(rep(mean(avlength), 37),
                 rep(mean(updist), 37)))
 colnames(newdata) <- c("avlength", "avcondition", "T_av", "O2_sat_av", "Con_av", "COD_av", "NH4._av", "Nt_av", "pool_riffle", "meander", "netcen", "updist")
 newdata[,"pool_riffle"] <- as.factor(newdata[,"pool_riffle"]); newdata[,"meander"] <- as.factor(newdata[,"meander"])
-newdata1 <- newdata; newdata1[,"avlength"] <- avlength
+newdata1 <- newdata; newdata1[,"avcondition"] <- avcondition
 BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(avlength, BMA$fit)) +
+ggplot(environment2, aes(avcondition, BMA$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
   geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
-  geom_point(data = environment2, aes(x=avlength, y=avab$Gyr)) +
-  labs(x=expression("Average host length [mm]"), y=expression("Average Gyrodactylus count")) +
+  geom_point(data = environment2, aes(x=avcondition, y=avab$Gyr)) +
+  labs(x=expression("Average host condition"), y=expression("Average Gyrodactylus count")) +
   theme(axis.title.x = element_text(size=12),
         axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 ```
@@ -316,7 +464,7 @@ pip <- summary(bas.model)
 PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
 
-# 6.3.2 Median infection intensity
+# 6.3.2 Prevalence
 
 ```{r}
 bas.model <- bas.lm(prev$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
@@ -337,8 +485,7 @@ write.table(confint, 'GyroAA.txt', sep="\t")
 pip <- summary(bas.model)
 PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
-
-# 6.3.2.3 Prediction plot for marginal effect of total nitrogen on average Gyrodactylus infection
+# 6.3.2.3 Prediction plot for marginal effect of conductivity on average Gyrodactylus infection
 
 ```{r}
 newdata1 <- newdata; newdata1[,"Con_av"] <- environment2$Con_av
@@ -352,6 +499,8 @@ ggplot(environment2, aes(Con_av, BMA$fit)) +
   theme(axis.title.x = element_text(size=12),
         axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 ```
+
+
 
 # 6.4 Variation in Trichodina infection
 # 6.4.1 Mean abundance
@@ -447,151 +596,124 @@ pip <- summary(bas.model)
 PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
 
-## 6.5 Figure
+## 6.5 Variation in Glugea infection
 
 ```{r}
-PIP <- matrix(nrow=12, ncol=14)
-rownames(PIP) <- c("Condition", "Length", "Temperature", "Oxygen saturation", "Conductivity", "COD", "Ammonium", "Total nitrogen", "Pool riffle pattern", "Meander", "Network centrality", "Upstream distance")
-colnames(PIP) <- c("Condition", "Length", "Gyrodactylus abundance", "Gyrodactylus prevalence", "Gyrodactylus infection intensity", "Trichodina abundance", "Trichodina prevalence", "Trichodina infection intensity", "Glugea", "Contracaecum", "Aguillicola",
-                   "PI", "PI ecto", "PI endo")  
-
-#Condition
-bas.model <- bas.lm(avcondition ~ T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data=environment2, prior="JZS")
-coef.model <- coef(bas.model)
-pip <- summary(bas.model)
-PIP[c(3:12),1] <- pip[2:11,1]*sign(coef.model$postmean[2:11])
-
-#Length
-bas.model <- bas.lm(avlength ~ T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data=environment2, prior="JZS")
-coef.model <- coef(bas.model)
-pip <- summary(bas.model)
-PIP[c(3:12),2] <- pip[2:11,1]*sign(coef.model$postmean[2:11])
-
-#Gyrodactylus abundance
-bas.model <- bas.lm(avab$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data=environment2, prior="JZS")
-coef.model <- coef(bas.model)
-pip <- summary(bas.model)
-PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
-
-#Gyrodactylus prevalence
-bas.model <- bas.lm(prev$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data=environment2, prior="JZS")
-coef.model <- coef(bas.model)
-pip <- summary(bas.model)
-PIP[c(1:12),4] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
-
-#Gyrodactylus infection intensity
-bas.model <- bas.lm(medin$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data=environment2, prior="JZS")
-coef.model <- coef(bas.model)
-pip <- summary(bas.model)
-PIP[c(1:12),5] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
-
-#Trichodina abundance
-bas.model <- bas.lm(avab$Tri ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data=environment2, prior="JZS")
-coef.model <- coef(bas.model)
-pip <- summary(bas.model)
-PIP[c(1:12),6] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
-
-#Trichodina prevalence
-bas.model <- bas.lm(prev$Tri ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data=environment2, prior="JZS")
-coef.model <- coef(bas.model)
-pip <- summary(bas.model)
-PIP[c(1:12),7] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
-
-#Trichodina infection intensity
-bas.model <- bas.lm(medin$Tri ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander + netcen + 
-                       updist, data=environment2, prior="JZS")
-coef.model <- coef(bas.model)
-pip <- summary(bas.model)
-PIP[c(1:12),8] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
-
-#Glugea
-bas.model <- bas.glm(pa$Glu ~ avlength + avcondition + T_av + O2_sat_av + Con_av^2 + COD_av + 
-                       log(NH4._av) + log(Nt_av) + log(SM_av) + pool_riffle + meander + 
+bas.model <- bas.glm(pa$Glu ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av + 
+                       NH4._av + Nt_av + SM_av + pool_riffle + meander + 
                        spavar$netcen + spavar$updist, data=environment2, betaprior=g.prior(100), family=binomial)
+yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
+r = bas.model$Y - yhat #these are the model residuals
+plot(bas.model)
+summary(bas.model)
+image(bas.model, rotate=F)
 coef.model <- coef(bas.model)
+abs(coef.model$postmean)-2*coef.model$postsd > 0
+confint(coef.model)
+plot(confint(coef.model, parm = 2:11))
+confint <- confint(coef.model, parm = 2:11)
 pip <- summary(bas.model)
 PIP[c(1:12),9] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+```
 
-#Contracaecum
-bas.model <- bas.glm(pa$Con ~ avlength + avcondition + T_av + O2_sat_av + Con_av^2 + COD_av + 
-                       log(NH4._av) + log(Nt_av) + log(SM_av) + pool_riffle + meander + 
+## 6.5 Variation in Contracaecum infection
+
+```{r}
+bas.model <- bas.glm(pa$Con ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av + 
+                       NH4._av + Nt_av + SM_av + pool_riffle + meander + 
                        spavar$netcen + spavar$updist, data=environment2, betaprior=g.prior(100), family=binomial)
+yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
+r = bas.model$Y - yhat #these are the model residuals
+plot(bas.model)
+summary(bas.model)
+image(bas.model, rotate=F)
 coef.model <- coef(bas.model)
+abs(coef.model$postmean)-2*coef.model$postsd > 0
+confint(coef.model)
+plot(confint(coef.model, parm = 2:11))
+confint <- confint(coef.model, parm = 2:11)
 pip <- summary(bas.model)
 PIP[c(1:12),10] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+```
 
-#Anguillicola
-bas.model <- bas.glm(pa$Ang ~ avlength + avcondition + T_av + O2_sat_av + Con_av^2 + COD_av + 
-                       log(NH4._av) + log(Nt_av) + log(SM_av) + pool_riffle + meander + 
+## Variation in Anguillicoloides infection
+
+```{r}
+bas.model <- bas.glm(pa$Ang ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av + 
+                       NH4._av + Nt_av + SM_av + pool_riffle + meander + 
                        spavar$netcen + spavar$updist, data=environment2, betaprior=g.prior(100), family=binomial)
+yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
+r = bas.model$Y - yhat #these are the model residuals
+plot(bas.model)
+summary(bas.model)
+image(bas.model, rotate=F)
 coef.model <- coef(bas.model)
+abs(coef.model$postmean)-2*coef.model$postsd > 0
+confint(coef.model)
+plot(confint(coef.model, parm = 2:11))
+confint <- confint(coef.model, parm = 2:11)
 pip <- summary(bas.model)
 PIP[c(1:12),11] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+```
 
-#PI
+## Variation in Individual Parasitation Index (all parasites)
+
+```{r}
 bas.model <- bas.lm(avPI ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander + netcen + 
                        updist, data=environment2, prior="JZS")
+yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
+r = bas.model$Y - yhat #these are the model residuals
+plot(bas.model)
+summary(bas.model)
+image(bas.model, rotate=F)
 coef.model <- coef(bas.model)
+abs(coef.model$postmean)-2*coef.model$postsd > 0
+confint(coef.model)
+plot(confint(coef.model, parm = 2:11))
+confint <- confint(coef.model, parm = 2:11)
 pip <- summary(bas.model)
 PIP[c(1:12),12] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+```
 
-#PI ecto
+## Variation in Individual Parasitation Index (only ectoparasites)
+
+```{r}
 bas.model <- bas.lm(avPI_ecto ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander + netcen + 
                        updist, data=environment2, prior="JZS")
+yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
+r = bas.model$Y - yhat #these are the model residuals
+plot(bas.model)
+summary(bas.model)
+image(bas.model, rotate=F)
 coef.model <- coef(bas.model)
+abs(coef.model$postmean)-2*coef.model$postsd > 0
+confint(coef.model)
+plot(confint(coef.model, parm = 2:11))
+confint <- confint(coef.model, parm = 2:11)
 pip <- summary(bas.model)
 PIP[c(1:12),13] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
+```
 
-#PI endo
+## Variation in Individual Parasitation Index (only endoparasites)
+
+```{r}
 bas.model <- bas.lm(avPI_endo ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander + netcen + 
                        updist, data=environment2, prior="JZS")
+yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
+r = bas.model$Y - yhat #these are the model residuals
+plot(bas.model)
+summary(bas.model)
+image(bas.model, rotate=F)
 coef.model <- coef(bas.model)
+abs(coef.model$postmean)-2*coef.model$postsd > 0
+confint(coef.model)
+plot(confint(coef.model, parm = 2:11))
+confint <- confint(coef.model, parm = 2:11)
 pip <- summary(bas.model)
 PIP[c(1:12),14] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
-```
-```{r}
-
-library(gplots)
-
-x = round(PIP, digits=2)
-x[abs(PIP)<0.5] <- ""
-x[abs(PIP)>0.5] <- "+"
-heatmap.2(PIP,
-          cellnote = x,
-          #main = "Correlation",
-          notecex=1,
-          notecol="white",
-          density.info="none",
-          trace="none",
-          margins =c(10,6),
-          col=redblue(256),
-          dendrogram="both",
-          cexRow = 0.7,
-          cexCol = 0.7,
-          key.title = "PIP",
-          lhei = c(1,3),
-          lwid = c(0.5, 0.5),
-          #Colv="NA"
-          ) 
-
 ```
 
 
