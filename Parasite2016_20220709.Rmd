@@ -1,7 +1,7 @@
 ---
 title: "Analyses for stickleback landscape parasitology study"
 author: "Pascal I. Hablützel and Io S. Deflem"
-date: '2022-07-09'
+date: '2022-11-27'
 output: html_document
 ---
 
@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This R Markdown document describes the analyses performed for the manuscript entitled "Environmental pollution correlates with parasite infection across a riverine landscape" by Io S. Deflem, Seppe Marchand, Federico C.F. Calboli, Joost A.M. Raeymaekers, Filip A.M. Volckaert and Pascal I. Hablützel.
 
-The analyses were run in R 4.1.2
+The analyses were run in R 4.2.2
 
 ## 2. Study area and sampling
 
@@ -27,6 +27,15 @@ rm(list=ls())
 
 # Set working directory to location where script is stored
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # requires installation of package "rstudioapi"
+
+# Loading required libraries
+require(BAS)
+require(boral)
+require(car)
+require(corrplot)
+require(ggplot2)
+require(gplots)
+require(vegan)
 ```
 
 ## 4 Loading and preparing host and parasite data
@@ -39,11 +48,9 @@ data <- read.csv("data_2016_2303.csv", sep=';')
 data$site <- as.factor(data$site)
 
 # Calculate parasite parameters
-names(data)
+#names(data)
 #parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
 datao <- na.omit(data[,c(1,22:24,26:32)]) #remove fish without parasite counts
-
-library(vegan)
 
 ddata <- dispweight(datao[,-1]) #correct for overdispersion of the parasite count data
 avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
@@ -115,7 +122,8 @@ environment <- read.csv("Environment_update.csv", sep=';')
 spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
 plot(spavar$netcen); plot(density(spavar$netcen))
 plot(spavar$updist); plot(density(spavar$updist))
-#environmental data (from field observations)
+
+# Environmental data (from field observations)
 field_data <- read.csv("field_data.csv", sep=',')
 environment2 <- cbind(environment[,c(1,49,52:53,55,57,60,63)], field_data[-c(8,10,25,27,37),33:34], spavar[,c(2,3)])
 environment2$pool_riffle <- as.factor(environment2$pool_riffle)
@@ -131,12 +139,9 @@ We used univariate generalized linear models to investigate how landscape-level 
 
 Univariate analyses - We used generalized linear models in a BMA approach to understand how infection with individual parasite taxa relate to host characteristics (length and condition), environmental conditions as well as spatial distance among sampling sites. Parasite infection was calculated in three ways at the host population level: average abundance (mean parasites per host), prevalence (percentage of infected hosts) and median infection intensity (median number of parasites in infected hosts). We calculated the individual parasitation index (IPI) following Kalbe et al. (2002) as a measurement for total parasite abundance and species richness for each individual fish. This index was calculated for all parasite species combined, and for ecto- and endoparasite species separately. For these models, we assumed a normal error distribution (which appeared to be justified, see Supplementary Figures S1-S2) and applied a Jeffrey-Zellner-Siow prior. Model assumptions (homoscedasticity of the variances and normal distribution of the errors) were assessed using the generic model plot function in R and did onlynot clearly deviate in any of the models for rare parasites. We followed a normal distribution, and not Poisson or negative binomial, for the parasite data for the common species (Trichodina sp. and Gyrodactylus spp.) and the individual parasitation index as the parameters used are deviates from count data. Rare parasites (Glugea, Contracaecum, Anguillicoloides, and unidentified cysts) were excluded from the univariate analysis because there was not enough data to obtain a good fit of the models.For rare parasites (Contracaecum sp. and Anguillicoloides crassus), we used population-level presence-absence data assuming a binomial error distribution and a uniformly distributed BIC prior. Due to low prevalences, the other parasites were not included in the species-specific models.  Explanatory variables were considered important when they had a posterior inclusion probability (PIP) of 0.5. To account for overdispersion in the parasite counts, we transformed the data by downweighting overdispersed taxa following Clarke et al. (2006) using the dispweight function in the R package vegan v2.5.6 (Oksanen et al., 2013).
 
-
 ## 6.0.1 Figure
 
 ```{r}
-library(BAS)
-
 # Make a matrix for PIP (Posterior Inclusion Probability)
 PIP <- matrix(nrow=12, ncol=14)
 rownames(PIP) <- c("Host condition", "Host size", "Temperature", "Oxygen saturation", "Conductivity", "COD", "Ammonium", "Total nitrogen", "Pool riffle pattern", "Meander", "Network peripherality", "Upstream distance")
@@ -259,8 +264,6 @@ PIP[c(1:12),14] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
 
 ```{r}
-library(gplots)
-
 x = round(PIP, digits=2)
 x[abs(PIP)<0.5] <- ""
 x[abs(PIP)>0.5] <- "+"
@@ -339,8 +342,6 @@ newdata1 <- newdata; newdata1[,"netcen"] <- netcen
 BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
 
 png(file="figure.png", res=600, width=3000, height=3000)
-
-library(ggplot2)
 
 figure_avlength <- ggplot(environment2, aes(netcen, BMA$fit)) +
   theme_bw() +
@@ -444,7 +445,7 @@ bas.model <- bas.lm(medin$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_
                        updist, data=environment2, prior="JZS")
 yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
 r = bas.model$Y - yhat #these are the model residuals
-library(car)
+
 plot(bas.model)
 summary(bas.model)
 image(bas.model, rotate=F)
@@ -466,7 +467,7 @@ bas.model <- bas.lm(prev$Gyr ~ avlength + avcondition + T_av + O2_sat_av + Con_a
                        updist, data=environment2, prior="JZS")
 yhat = fitted(bas.model, estimator = "BMA") #these are the fitted values under BMA
 r = bas.model$Y - yhat #these are the model residuals
-library(car)
+
 plot(bas.model)
 summary(bas.model)
 image(bas.model, rotate=F)
@@ -795,8 +796,6 @@ Model-based analysis of multivariate abundance data using Bayesian Markov chain 
 # 7.1 BORAL analysis for average abundances of parasites
 
 ```{r}
-library(boral)
-
 data$Site <- as.factor(data$site)
 levels(data$site) <- levels(as.factor(environment2$Site))
 data_m <- merge(data, environment2, by = "Site")
@@ -846,7 +845,6 @@ coefsplot(covname = "meander", object = paramod) #meander
 
 envcors <- get.enviro.cor(paramod)
 rescors <- get.residual.cor(paramod)
-library(corrplot)
 corrplot(envcors$sig.cor, type = "lower", diag = FALSE, title = "Correlations due to covariates", mar = c(3,0.5,2,1), tl.srt = 45)
 corrplot(rescors$sig.cor, type = "lower", diag = FALSE, title = "Residual correlations", mar = c(3,0.5,2,1), tl.srt = 45)
 ```
@@ -879,7 +877,6 @@ coefsplot(covname = "meander", object = paramod) #meander
 
 envcors <- get.enviro.cor(paramod)
 rescors <- get.residual.cor(paramod)
-library(corrplot)
 corrplot(envcors$sig.cor, type = "lower", diag = FALSE, title = "Correlations due to covariates", mar = c(3,0.5,2,1), tl.srt = 45)
 corrplot(rescors$sig.cor, type = "lower", diag = FALSE, title = "Residual correlations", mar = c(3,0.5,2,1), tl.srt = 45)
 ```
