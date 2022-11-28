@@ -1,8 +1,10 @@
 ---
 title: "Analyses for stickleback landscape parasitology study"
 author: "Pascal I. Hablützel and Io S. Deflem"
-date: '2022-11-27'
-output: html_document
+date: "2022-11-27"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
