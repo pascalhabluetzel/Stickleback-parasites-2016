@@ -8,7 +8,8 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
 ```
 
 ## 1. Description
@@ -19,25 +20,35 @@ The analyses were run in R 4.2.2
 
 ## 2. Study area and sampling
 
-Up to thirty 0+ three-spined sticklebacks were sampled at 37 locations in the Dijle and Demer basins in Belgium during autumn 2016 under a permit of the Flemish Agency Nature and Forest (Fig. 1). Both basins together cover a continuous surface area of 3,624 km² with the furthest two sampling sites being located 117 km apart (distance measured along rivers). All locations included small and relatively slow flowing streams (drop off from highest to lowest point is 18 m) covering a wide range of ecological, hydromorphological, and physico-chemical characteristics. Fish were caught using a dip net.
+Up to thirty 0+ three-spined sticklebacks were sampled at 37 locations in the Dijle and Demer basins in Belgium during autumn 2016 under a permit of the Flemish Agency Nature and Forest. Both basins together cover a continuous surface area of 3,624 km² with the furthest two sampling sites being located 117 km apart (distance measured along rivers). All locations included small and relatively slow flowing streams (drop off from highest to lowest point is 18 m) covering a wide range of ecological, hydromorphological, and physico-chemical characteristics. Fish were caught using a dip net.
 
 ## 3. Setting up working environment
 
-```{r}
+```{r, message=FALSE, error=FALSE}
 # Empty environment
 rm(list=ls())
+
+# Print version of R
+cat("This script was run with:", version[['version.string']], "\n")
 
 # Set working directory to location where script is stored
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # requires installation of package "rstudioapi"
 
 # Loading required libraries
 require(BAS)
+cat("BAS version", getNamespaceVersion("BAS"), "\n")
 require(boral)
+cat("boral version", getNamespaceVersion("boral"), "\n")
 require(car)
+cat("car version", getNamespaceVersion("car"), "\n")
 require(corrplot)
+cat("corrplot version", getNamespaceVersion("corrplot"), "\n")
 require(ggplot2)
+cat("ggplot2 version", getNamespaceVersion("ggplot2"), "\n")
 require(gplots)
+cat("gplots version", getNamespaceVersion("gplots"), "\n")
 require(vegan)
+cat("vegan version", getNamespaceVersion("vegan"), "\n")
 ```
 
 ## 4 Loading and preparing host and parasite data
@@ -51,22 +62,23 @@ data$site <- as.factor(data$site)
 
 # Calculate parasite parameters
 #names(data)
-#parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
-datao <- na.omit(data[,c(1,22:24,26:32)]) #remove fish without parasite counts
+# Parasite data is overdispersed (mostly so for Trichodina), if using average abundance data, species matrix needs to be transformed
+# Remove individual fish for which no parasites were counted
+datao <- na.omit(data[,c(1,22:24,26:32)]) 
 
-ddata <- dispweight(datao[,-1]) #correct for overdispersion of the parasite count data
-avab <- aggregate(ddata, by = list(datao[,1]), function(x){mean(x, na.rm =T)})
-prev = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){sum(x >0, na.rm = T)/length(x)})
-medin = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){median(x[x >0], na.rm = T)}) 
-pa = aggregate(data[,c(22:24,26:32)], by = list(data[,1]), function(x){ifelse(mean(x, na.rm =T)>0,1,0)}) 
+ddata <- dispweight(datao[,-1]) # Correct for overdispersion of the parasite count data
+avab <- aggregate(ddata, by = list(datao[, "site"]), function(x){mean(x, na.rm =T)}) # Calculate average abundances per site
+prev = aggregate(data[,c(22:24,26:32)], by = list(data[, "site"]), function(x){sum(x >0, na.rm = T)/length(x)}) # Calculate prevalence per site
+medin = aggregate(data[,c(22:24,26:32)], by = list(data[, "site"]), function(x){median(x[x >0], na.rm = T)}) # Calculate median infection intensity per site
+pa = aggregate(data[,c(22:24,26:32)], by = list(data[, "site"]), function(x){ifelse(mean(x, na.rm =T)>0,1,0)}) # Assess presence/absence per site
 
 avab[is.na(avab)] <- 0
 prev[is.na(prev)] <- 0
 medin[is.na(medin)] <- 0
 
 # Host condition data
-avcondition <- aggregate(data$SMI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
-avlength <- aggregate(data$length, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+avcondition <- aggregate(data$SMI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2] # Calculate average host condition (SMI) per site
+avlength <- aggregate(data$length, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2] # Calculate average host length per site
 
 # Parasite index
 sgyr <- 1:nrow(data)
@@ -109,9 +121,9 @@ for(j in 1:nrow(data)){
     10/max(saca, na.rm=T)*saca[j] + 10/max(scam, na.rm=T)*scam[j] + 10/max(sang, na.rm=T)*sang[j]
 }
 
-avPI <- aggregate(PI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
-avPI_ecto <- aggregate(PI_ecto, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
-avPI_endo <- aggregate(PI_endo, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2]
+avPI <- aggregate(PI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2] # Calculate average parasite index per site
+avPI_ecto <- aggregate(PI_ecto, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2] # Calculate average parasite index for ectoparasites per site
+avPI_endo <- aggregate(PI_endo, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2] # Calculate average parasite index for endoparasites per site
 ```
 
 ## 5 Loading and preparing environmental and spatial data
@@ -121,9 +133,10 @@ Physico-chemical data was provided by the Flemish Environmental Agency (VMM). Ea
 ```{r}
 # Environmental data (VMM)
 environment <- read.csv("Environment_update.csv", sep=';')
-spavar <- read.csv("space2.csv", sep=';') #spatial variables: network centrality and upstream distance
-plot(spavar$netcen); plot(density(spavar$netcen))
-plot(spavar$updist); plot(density(spavar$updist))
+# Spatial variables: network centrality and upstream distance
+spavar <- read.csv("space2.csv", sep=';')
+#plot(spavar$netcen); plot(density(spavar$netcen))
+#plot(spavar$updist); plot(density(spavar$updist))
 
 # Environmental data (from field observations)
 field_data <- read.csv("field_data.csv", sep=',')
@@ -141,12 +154,12 @@ We used univariate generalized linear models to investigate how landscape-level 
 
 Univariate analyses - We used generalized linear models in a BMA approach to understand how infection with individual parasite taxa relate to host characteristics (length and condition), environmental conditions as well as spatial distance among sampling sites. Parasite infection was calculated in three ways at the host population level: average abundance (mean parasites per host), prevalence (percentage of infected hosts) and median infection intensity (median number of parasites in infected hosts). We calculated the individual parasitation index (IPI) following Kalbe et al. (2002) as a measurement for total parasite abundance and species richness for each individual fish. This index was calculated for all parasite species combined, and for ecto- and endoparasite species separately. For these models, we assumed a normal error distribution (which appeared to be justified, see Supplementary Figures S1-S2) and applied a Jeffrey-Zellner-Siow prior. Model assumptions (homoscedasticity of the variances and normal distribution of the errors) were assessed using the generic model plot function in R and did onlynot clearly deviate in any of the models for rare parasites. We followed a normal distribution, and not Poisson or negative binomial, for the parasite data for the common species (Trichodina sp. and Gyrodactylus spp.) and the individual parasitation index as the parameters used are deviates from count data. Rare parasites (Glugea, Contracaecum, Anguillicoloides, and unidentified cysts) were excluded from the univariate analysis because there was not enough data to obtain a good fit of the models.For rare parasites (Contracaecum sp. and Anguillicoloides crassus), we used population-level presence-absence data assuming a binomial error distribution and a uniformly distributed BIC prior. Due to low prevalences, the other parasites were not included in the species-specific models.  Explanatory variables were considered important when they had a posterior inclusion probability (PIP) of 0.5. To account for overdispersion in the parasite counts, we transformed the data by downweighting overdispersed taxa following Clarke et al. (2006) using the dispweight function in the R package vegan v2.5.6 (Oksanen et al., 2013).
 
-## 6.0.1 Figure
+## 6.0.1 Figure 2
 
 ```{r}
 # Make a matrix for PIP (Posterior Inclusion Probability)
 PIP <- matrix(nrow=12, ncol=14)
-rownames(PIP) <- c("Host condition", "Host size", "Temperature", "Oxygen saturation", "Conductivity", "COD", "Ammonium", "Total nitrogen", "Pool riffle pattern", "Meander", "Network peripherality", "Upstream distance")
+rownames(PIP) <- c("Host condition", "Host length", "Temperature", "Oxygen saturation", "Conductivity", "COD", "Ammonium", "Total nitrogen", "Pool riffle pattern", "Meander", "Network peripherality", "Upstream distance")
 colnames(PIP) <- c("Host condition", "Host size", "Gyrodactylus abundance", "Gyrodactylus prevalence", "Gyrodactylus infection intensity", "Trichodina abundance", "Trichodina prevalence", "Trichodina infection intensity", "Glugea", "Contracaecum", "Aguillicola",
                    "PI", "PI ecto", "PI endo")  
 ```
@@ -284,9 +297,51 @@ heatmap.2(PIP[,-c(9,10,11)],
           key.title = "PIP",
           lhei = c(1,3),
           lwid = c(0.5, 0.5),
+          srtCol = 45,
+          labCol = c("Host condition", "Host length",
+                     expression(paste(italic("Gyrodactylus"),  " spp. - abundance")),
+                     expression(paste(italic("Gyrodactylus"), " spp. - prevalence")),
+                     expression(paste(italic("Gyrodactylus"), " spp. - infection intensity")),
+                     expression(paste(italic("Trichodina"), " sp. - abundance")),
+                     expression(paste(italic("Trichodina"), " sp. - prevalence")), 
+                     expression(paste(italic("Trichodina"), " sp. - infection intensity")), 
+                     expression("I"[PI]*" all parasites"), 
+                     expression("I"[PI]*" ectoparasites"), 
+                     expression("I"[PI]*" endoparasites")) ,
           #Colv="NA"
           ) 
 
+pdf("Figure2.pdf", width = 7.29, height = 4.5)
+heatmap.2(PIP[,-c(9,10,11)],
+          cellnote = x[,-c(9,10,11)],
+          #main = "Correlation",
+          notecex=1,
+          notecol="white",
+          density.info="none",
+          trace="none",
+          margins =c(10,8),
+          col=redblue(256),
+          dendrogram="both",
+          cexRow = 0.7,
+          cexCol = 0.7,
+          key.title = "PIP",
+          lhei = c(1,3),
+          lwid = c(0.5, 0.5),
+          srtCol = 45,
+          labCol = c("Host condition", "Host length", 
+                     expression(paste(italic("Gyrodactylus"),  " spp. - abundance")), 
+                     expression(paste(italic("Gyrodactylus"), " spp. - prevalence")), 
+                     expression(paste(italic("Gyrodactylus"), " spp. - infection intensity")), 
+                     expression(paste(italic("Trichodina"), " sp. - abundance")), 
+                     expression(paste(italic("Trichodina"), " sp. - prevalence")), 
+                     expression(paste(italic("Trichodina"), " sp. - infection intensity")), 
+                     expression("I"[PI]*" all parasites"), 
+                     expression("I"[PI]*" ectoparasites"), 
+                     expression("I"[PI]*" endoparasites")) ,
+          #Colv="NA"
+          ) 
+
+dev.off()
 ```
 
 
@@ -341,20 +396,18 @@ newdata = as.data.frame(cbind(rep(mean(environment2$T_av), 37),
 colnames(newdata) <- c("T_av", "O2_sat_av", "Con_av", "COD_av", "NH4._av", "Nt_av", "pool_riffle", "meander", "netcen", "updist")
 newdata[,"pool_riffle"] <- as.factor(newdata[,"pool_riffle"]); newdata[,"meander"] <- as.factor(newdata[,"meander"])
 newdata1 <- newdata; newdata1[,"netcen"] <- netcen
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+BMA_avlength_netcen <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
 
-png(file="figure.png", res=600, width=3000, height=3000)
-
-figure_avlength <- ggplot(environment2, aes(netcen, BMA$fit)) +
+figure3j <- ggplot(environment2, aes(netcen, BMA_avlength_netcen$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_avlength_netcen$fit-BMA_avlength_netcen$se.bma.fit), ymax = (BMA_avlength_netcen$fit+BMA_avlength_netcen$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=netcen, y=avlength)) +
   labs(x=expression("Network peripherality [m]"), y=expression("Average host length [mm]")) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-dev.off()
-figure_avlength
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "j)")
+figure3j
 ```
 
 # 6.3 Variation in Gyrodactylus infection
@@ -398,45 +451,52 @@ newdata = as.data.frame(cbind(rep(mean(avlength), 37),
 colnames(newdata) <- c("avlength", "avcondition", "T_av", "O2_sat_av", "Con_av", "COD_av", "NH4._av", "Nt_av", "pool_riffle", "meander", "netcen", "updist")
 newdata[,"pool_riffle"] <- as.factor(newdata[,"pool_riffle"]); newdata[,"meander"] <- as.factor(newdata[,"meander"])
 newdata1 <- newdata; newdata1[,"avcondition"] <- avcondition
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(avcondition, BMA$fit)) +
+BMA_Gyr_avcond <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3k = ggplot(environment2, aes(avcondition, BMA_Gyr_avcond$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_Gyr_avcond$fit-BMA_Gyr_avcond$se.bma.fit), ymax = (BMA_Gyr_avcond$fit+BMA_Gyr_avcond$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=avcondition, y=avab$Gyr)) +
-  labs(x=expression("Average host condition"), y=expression("Average Gyrodactylus count")) +
+  labs(x=expression("Average host condition"), y=expression(paste(italic("Gyrodactylus"), " spp. - abundance"))) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "k)")
+
+figure3k
 ```
 
 # 6.3.1.2 Prediction plot for marginal effect of COD on average Gyrodactylus infection
 
 ```{r}
 newdata1 <- newdata; newdata1[,"COD_av"] <- environment2$COD_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(COD_av, BMA$fit)) +
+BMA_Gyr_COD_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3a = ggplot(environment2, aes(COD_av, BMA_Gyr_COD_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_Gyr_COD_av$fit-BMA_Gyr_COD_av$se.bma.fit), ymax = (BMA_Gyr_COD_av$fit+BMA_Gyr_COD_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=COD_av, y=avab$Gyr)) +
-  labs(x=expression("COD"), y=expression("Average Gyrodactylus count")) +
+  labs(x=expression("Chemical Oxygen Demand [mg/L]"), y=expression(paste(italic("Gyrodactylus"), " spp. - abundance"))) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "a)")
+figure3a
 ```
 
 # 6.3.2.3 Prediction plot for marginal effect of total nitrogen on average Gyrodactylus infection
 
 ```{r}
 newdata1 <- newdata; newdata1[,"Nt_av"] <- environment2$Nt_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(Nt_av, BMA$fit)) +
+BMA_Gyr_Nt_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3e = ggplot(environment2, aes(Nt_av, BMA_Gyr_Nt_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_Gyr_Nt_av$fit-BMA_Gyr_Nt_av$se.bma.fit), ymax = (BMA_Gyr_Nt_av$fit+BMA_Gyr_Nt_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=Nt_av, y=avab$Gyr)) +
-  labs(x=expression("Nt"), y=expression("Average Gyrodactylus count")) +
+  labs(x=expression("Nt [mg/L]"), y=expression(paste(italic("Gyrodactylus"), " spp. - abundance"))) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "e)")
+figure3e
 ```
 
 # 6.3.2 Median infection intensity
@@ -482,19 +542,22 @@ write.table(confint, 'GyroAA.txt', sep="\t")
 pip <- summary(bas.model)
 PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
+
 # 6.3.2.3 Prediction plot for marginal effect of conductivity on average Gyrodactylus infection
 
 ```{r}
 newdata1 <- newdata; newdata1[,"Con_av"] <- environment2$Con_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(Con_av, BMA$fit)) +
+BMA_Gyr_Con_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3i = ggplot(environment2, aes(Con_av, BMA_Gyr_Con_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_Gyr_Con_av$fit-BMA_Gyr_Con_av$se.bma.fit), ymax = (BMA_Gyr_Con_av$fit+BMA_Gyr_Con_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=Con_av, y=prev$Gyr)) +
-  labs(x=expression("Conductivity"), y=expression("Gyrodactylus prevalence")) +
+  labs(x=expression(paste("Conductivity [", mu, "S/cm]")), y=expression(paste(italic("Gyrodactylus"), " spp. - prevalence"))) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "i)")
+figure3i
 ```
 
 
@@ -546,30 +609,34 @@ PIP[c(1:12),3] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 
 ```{r}
 newdata1 <- newdata; newdata1[,"Con_av"] <- environment2$Con_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(Con_av, BMA$fit)) +
+BMA_Tri_Con_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3h = ggplot(environment2, aes(Con_av, BMA_Tri_Con_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_Tri_Con_av$fit-BMA_Tri_Con_av$se.bma.fit), ymax = (BMA_Tri_Con_av$fit+BMA_Tri_Con_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=Con_av, y=medin$Tri)) +
-  labs(x=expression("Conductivity"), y=expression("Trichodina median infection intensity")) +
+  labs(x=expression(paste("Conductivity [", mu, "S/cm]")), y=expression(paste(italic("Trichodina"), " sp. - infection intensity"))) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "h)")
+figure3h
 ```
 
 # 6.3.2.3 Prediction plot for marginal effect of COD on median infection intensity with Trichodina
 
 ```{r}
 newdata1 <- newdata; newdata1[,"COD_av"] <- environment2$COD_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(COD_av, BMA$fit)) +
+BMA_Tri_COD_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3d = ggplot(environment2, aes(COD_av, BMA_Tri_COD_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_Tri_COD_av$fit-BMA_Tri_COD_av$se.bma.fit), ymax = (BMA_Tri_COD_av$fit+BMA_Tri_COD_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=COD_av, y=medin$Tri)) +
-  labs(x=expression("Conductivity"), y=expression("Trichodina median infection intensity")) +
+  labs(x=expression(paste("Chemical Oxygen Demand [mg/L]")), y=expression(paste(italic("Trichodina"), " sp. - infection intensity"))) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "d)")
+figure3d
 ```
 
 # 6.4.1 Prevalence
@@ -677,15 +744,17 @@ PIP[c(1:12),12] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 
 ```{r}
 newdata1 <- newdata; newdata1[,"COD_av"] <- environment2$COD_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(COD_av, BMA$fit)) +
+BMA_IPI_COD_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3b = ggplot(environment2, aes(COD_av, BMA_IPI_COD_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_IPI_COD_av$fit-BMA_IPI_COD_av$se.bma.fit), ymax = (BMA_IPI_COD_av$fit+BMA_IPI_COD_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=COD_av, y=avPI)) +
-  labs(x=expression("COD"), y=expression("Individual Parasitation Index")) +
+  labs(x=expression("Chemical Oxygen Demand [mg/L]"), y=expression("I"[PI]*" - all parasites")) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "b)")
+figure3b
 ```
 
 ## Variation in Individual Parasitation Index (only ectoparasites)
@@ -712,62 +781,69 @@ PIP[c(1:12),13] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 
 ```{r}
 newdata1 <- newdata; newdata1[,"COD_av"] <- environment2$COD_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(COD_av, BMA$fit)) +
+BMA_IPIecto_COD_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3c = ggplot(environment2, aes(COD_av, BMA_IPIecto_COD_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_IPIecto_COD_av$fit-BMA_IPIecto_COD_av$se.bma.fit), ymax = (BMA_IPIecto_COD_av$fit+BMA_IPIecto_COD_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=COD_av, y=avPI_ecto)) +
-  labs(x=expression("COD"), y=expression("Individual Parasitation Index (only ectoparasites)")) +
+  labs(x=expression("Chemical Oxygen Demand [mg/L]"), y=expression("I"[PI]*" - ectoparasites")) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "c)")
+figure3c
 ```
 
 # Prediction plot for marginal effect of total nitrogen on Individual Parasitation Index (only ectoparasites)
 
 ```{r}
 newdata1 <- newdata; newdata1[,"Nt_av"] <- environment2$Nt_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(Nt_av, BMA$fit)) +
+BMA_IPIecto_Nt_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3f = ggplot(environment2, aes(Nt_av, BMA_IPIecto_Nt_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_IPIecto_Nt_av$fit-BMA_IPIecto_Nt_av$se.bma.fit), ymax = (BMA_IPIecto_Nt_av$fit+BMA_IPIecto_Nt_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=Nt_av, y=avPI_ecto)) +
-  labs(x=expression("Total nitrogen"), y=expression("Individual Parasitation Index (only ectoparasites)")) +
+  labs(x=expression("Nt [mg/L]"), y=expression("I"[PI]*" - ectoparasites")) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "f)")
+figure3f
 ```
 
 # Prediction plot for marginal effect of conductivity on Individual Parasitation Index (only ectoparasites)
 
 ```{r}
 newdata1 <- newdata; newdata1[,"Con_av"] <- environment2$Con_av
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(Con_av, BMA$fit)) +
+BMA_IPIecto_Con_av <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3g = ggplot(environment2, aes(Con_av, BMA_IPIecto_Con_av$fit)) +
   theme_bw() +
   geom_line(color="red", size=1) +
-  geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
+  geom_ribbon(aes(ymin = (BMA_IPIecto_Con_av$fit-BMA_IPIecto_Con_av$se.bma.fit), ymax = (BMA_IPIecto_Con_av$fit+BMA_IPIecto_Con_av$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=Con_av, y=avPI)) +
-  labs(x=expression("Conductivity"), y=expression("Individual Parasitation Index (only ectoparasites)")) +
+  labs(x=expression(paste("Conductivity [", mu, "S/cm]")), y=expression("I"[PI]*" - all parasites")) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "g)")
+figure3g
 ```
 
 # Prediction plot for marginal effect of meanders on Individual Parasitation Index (only ectoparasites)
 
 ```{r}
 newdata1 <- newdata; newdata1[,"meander"] <- environment2$meander
-BMA <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
-ggplot(environment2, aes(meander, BMA$fit)) +
+BMA_IPIecto_meander <- predict(bas.model, newdata = newdata1, estimator = "BMA", se.fit=TRUE)
+figure3l = ggplot(environment2, aes(meander, BMA_IPIecto_meander$fit)) +
   theme_bw() +
   #geom_line(color="red", size=1) +
   #geom_ribbon(aes(ymin = (BMA$fit-BMA$se.bma.fit), ymax = (BMA$fit+BMA$se.bma.fit)), alpha = .1) +
   geom_point(data = environment2, aes(x=meander, y=avPI)) +
-  geom_boxplot(aes(lower = (BMA$fit-BMA$se.bma.fit), middle = BMA$fit, upper = (BMA$fit+BMA$se.bma.fit))) +
-  labs(x=expression("Meander"), y=expression("Individual Parasitation Index (only ectoparasites)")) +
+  geom_boxplot(aes(lower = (BMA_IPIecto_meander$fit-BMA_IPIecto_meander$se.bma.fit), middle = BMA_IPIecto_meander$fit, upper = (BMA_IPIecto_meander$fit+BMA_IPIecto_meander$se.bma.fit))) +
+  labs(x=expression("Meander"), y=expression("I"[PI]*" - ectoparasites")) +
   theme(axis.title.x = element_text(size=12),
-        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-
+        axis.title.y = element_text(size=12)) +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  labs(subtitle = "l)")
+figure3l
 ```
 
 
@@ -790,6 +866,15 @@ confint <- confint(coef.model, parm = 2:11)
 pip <- summary(bas.model)
 PIP[c(1:12),14] <- pip[2:13,1]*sign(coef.model$postmean[2:13])
 ```
+## Figure 3
+
+```{r}
+library(gridExtra)
+pdf("Figure3.pdf", width = 10.8, height = 14.4)
+grid.arrange(figure3a, figure3b, figure3c, figure3d, figure3e, figure3f, figure3g, figure3h, figure3i, figure3j, figure3k, figure3l)
+dev.off()
+```
+
 
 ## 7. BORAL analysis
 
@@ -898,9 +983,10 @@ mantel(spe.hel_bray, spe.hel_euc)
 ```
 
 ```{r}
-adonis(spe.hel_bray ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+model_adonis = adonis(spe.hel_bray ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander + netcen + 
                        updist, data=environment2)
+model_adonis$aov.tab
 ```
 
 ```{r}
@@ -991,10 +1077,12 @@ meandist_euc <- meandist(euc, data_infra[,1])
 plot(meandist_bray[1:37,1:37], meandist_euc[1:37,1:37])
 mantel(meandist_bray[1:37,1:37], meandist_euc[1:37,1:37])
 ```
+
 ```{r}
-adonis(meandist_bray ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
+model_adonis = adonis(meandist_bray ~ avlength + avcondition + T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander + netcen + 
                        updist, data=environment2)
+model_adonis$aov.tab
 ```
 
 ```{r}
@@ -1016,6 +1104,7 @@ biplot(pca)
 spe.rda <- dbrda(meandist_bray ~ T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander, data = env_select)
 anova(spe.rda)
+anova(spe.rda, by="term")
 RsquareAdj(spe.rda)$adj.r.squared
 mod0 <- dbrda(meandist_bray ~ 1, env_select)  # Model with intercept only  #edit_PH
 mod1 <- dbrda(meandist_bray ~ ., env_select)  # Model with all explanatory variables  #edit_PH
