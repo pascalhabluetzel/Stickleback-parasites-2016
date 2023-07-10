@@ -3,13 +3,13 @@ title: "Analyses for stickleback landscape parasitology study"
 author: "Pascal I. Hablützel and Io S. Deflem"
 date: "2022-11-27"
 output:
-  pdf_document: default
+  #pdf_document: default
   html_document: default
 ---
 
 ```{r setup, include=FALSE}
-#knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
 ```
 
 ## 1. Description
@@ -49,6 +49,14 @@ require(gplots)
 cat("gplots version", getNamespaceVersion("gplots"), "\n")
 require(vegan)
 cat("vegan version", getNamespaceVersion("vegan"), "\n")
+require(factoextra)
+cat("factoextra version", getNamespaceVersion("factoextra"), "\n")
+require(piecewiseSEM)
+cat("piecewiseSEM version", getNamespaceVersion("piecewiseSEM"), "\n")
+require(remotes)
+cat("remotes version", getNamespaceVersion("remotes"), "\n")
+require(nlme)
+cat("nlme version", getNamespaceVersion("nlme"), "\n")
 ```
 
 ## 4 Loading and preparing host and parasite data
@@ -124,6 +132,8 @@ for(j in 1:nrow(data)){
 avPI <- aggregate(PI, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2] # Calculate average parasite index per site
 avPI_ecto <- aggregate(PI_ecto, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2] # Calculate average parasite index for ectoparasites per site
 avPI_endo <- aggregate(PI_endo, by = list(data[,1]), function(x){mean(x, na.rm =T)})[,2] # Calculate average parasite index for endoparasites per site
+
+write.csv(prev, "supplementary_table_2.csv", row.names=FALSE)
 ```
 
 ## 5 Loading and preparing environmental and spatial data
@@ -146,6 +156,9 @@ environment2$meander <- as.factor(environment2$meander)
 
 netcen <- spavar$netcen
 updist <- spavar$updist
+
+supplementary_table_1 = cbind(environment2, netcen, updist)
+write.csv(supplementary_table_1, "supplementary_table_1.csv", row.names=FALSE)
 ```
 
 We used univariate generalized linear models to investigate how landscape-level effects modify infection patterns of individual parasite taxa, host size and condition. We kept the statistical models linear (as opposed to polynomial) and only considered main effects (i.e. no interaction terms) because we had no prior information from this study system that more complex models were necessary and because the study design with (only) 37 sampling sites was not intended for non-linear models. Ten explanatory variables (temperature, conductivity, COD, saturation with dissolved oxygen, ammonium, total nitrogen, the presence of pool-riffle patterns and meanders, upstream distance, and network peripherality) were included. 
@@ -169,6 +182,7 @@ colnames(PIP) <- c("Host condition", "Host size", "Gyrodactylus abundance", "Gyr
 bas.model <- bas.lm(avcondition ~ T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander + netcen + 
                        updist, data=environment2, prior="JZS")
+plot(bas.model)
 coef.model <- coef(bas.model)
 pip <- summary(bas.model)
 PIP[c(3:12),1] <- pip[2:11,1]*sign(coef.model$postmean[2:11])
@@ -1005,6 +1019,7 @@ biplot(pca)
 # Assess the effect of environmental variables on parasite component community dissimilarities using distance based RDA
 spe.rda <- dbrda(spe.hel_bray ~ T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander, data = env_select)
+summary(spe.rda)
 anova(spe.rda)
 RsquareAdj(spe.rda)$adj.r.squared
 mod0 <- dbrda(spe.hel_bray ~ 1, env_select[,-c(9:10)])  # Model with intercept only  #edit_PH
@@ -1021,6 +1036,14 @@ anova.cca(spe.rda, step=1000);
 anova.cca(spe.rda, step=1000, by="term");
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
+
+# Generate a plot of the RDA
+rownames(spe.rda$CCA$biplot) = c("temperature","O2","conductivity","COD","NH4","Nt","pool riffle pattern","meander")
+ordiplot(spe.rda, choices=c(1,2), type="n", xlab="dbRDA 1 (49.21 %)", ylab="dbRDA 2 (28.91 %)")
+points(spe.rda, "sites", pch=21, col="black", bg="white")
+text(spe.rda, "cn", col="grey", cex=0.9, scaling=1)
+# Save the plot to an object
+figure4c = recordPlot()
 ```
 
 ## 8.1.2 Effect of space on component community structure
@@ -1028,6 +1051,7 @@ RsquareAdj(spe.rda)$r.squared
 ```{r}
 # Same for spatial predictors
 spe.rda <- dbrda(spe.hel_bray ~ netcen + updist, data = env_select)
+summary(spe.rda)
 anova(spe.rda)
 RsquareAdj(spe.rda)$adj.r.squared
 mod0 <- dbrda(spe.hel_bray ~ 1, env_select[,c(9:10)])  # Model with intercept only  #edit_PH
@@ -1040,6 +1064,14 @@ anova.cca(spe.rda, step=1000);
 anova.cca(spe.rda, step=1000, by="term");
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
+
+# Generate a plot of the RDA
+rownames(spe.rda$CCA$biplot) = c("network centrality","upstream distance")
+ordiplot(spe.rda, choices=c(1,2), type="n", xlab="dbRDA 1 (76.59 %)", ylab="dbRDA 2 (23.41 %)")
+points(spe.rda, "sites", pch=21, col="black", bg="white")
+text(spe.rda, "cn", col="grey", cex=0.9, scaling=1, pos=4)
+# Save the plot to an object
+figure4d = recordPlot()
 ```
 
 ## 8.1.3 Variation partitioning
@@ -1102,7 +1134,17 @@ biplot(pca)
 ```{r}
 # Assess the effect of environmental variables on parasite infracommunity dissimilarities using distance based RDA
 spe.rda <- dbrda(meandist_bray ~ T_av + O2_sat_av + Con_av + COD_av 
-                     + NH4._av + Nt_av + pool_riffle + meander, data = env_select)
+                     + NH4._av + Nt_av + pool_riffle + meander, data = env_select, tidy=TRUE)
+summary(spe.rda)
+rownames(spe.rda$CCA$biplot) = c("temperature","O2","conductivity","COD","NH4","Nt","pool riffle pattern","meander")
+
+# Generate a plot of the RDA
+ordiplot(spe.rda, choices=c(1,2), type="n", xlab="dbRDA 1 (48.75 %)", ylab="dbRDA 2 (11.64 %)")
+points(spe.rda, "sites", pch=21, col="black", bg="white")
+text(spe.rda, "cn", col="grey", cex=0.9, scaling=1)
+# Save the plot to an object
+figure4a = recordPlot()
+
 anova(spe.rda)
 anova(spe.rda, by="term")
 RsquareAdj(spe.rda)$adj.r.squared
@@ -1128,6 +1170,15 @@ anova.cca(spe.rda, step=1000);
 anova.cca(spe.rda, step=1000, by="term");
 RsquareAdj(spe.rda)$adj.r.squared;
 RsquareAdj(spe.rda)$r.squared
+summary(spe.rda)
+
+# Generate a plot of the RDA
+rownames(spe.rda$CCA$biplot) = c("network centrality","upstream distance")
+ordiplot(spe.rda, choices=c(1,2), type="n", xlab="dbRDA 1 (54.65 %)", ylab="dbRDA 2 (45.35 %)")
+points(spe.rda, "sites", pch=21, col="black", bg="white")
+text(spe.rda, "cn", col="grey", cex=0.9, scaling=1, pos=4)
+# Save the plot to an object
+figure4b = recordPlot()
 ```
 
 ## 8.2.3 Variation partitioning
@@ -1144,4 +1195,65 @@ anova.cca(dbrda(meandist_bray ~ T_av + O2_sat_av + Con_av + COD_av
 anova.cca(dbrda(meandist_bray ~ netcen + updist+
                   Condition(T_av + O2_sat_av + Con_av + COD_av 
                      + NH4._av + Nt_av + pool_riffle + meander), data=env_select), step=1000)
+```
+
+## 8.3 Figure 4
+```{r}
+library(gridExtra)
+#pdf("Figure4.pdf", width = 10, height = 10)
+#grid.arrange(figure4a, figure4b, figure4c, figure4d)
+#dev.off()
+
+library(ggpubr)
+library(gridGraphics)
+pdf("Figure4.pdf", width = 16, height = 10)
+ggarrange(plotlist = list(figure4a, figure4c, figure4b, figure4d), nrow = 2, ncol=2)
+dev.off()
+
+
+```
+
+# 9. Structural equation model
+## 9.1 PCA of environmental variables
+```{r}
+# Conduct a PCA on the six physico-chemical variables from VMM
+PCA = prcomp(environment2[, c(2:7)], center = TRUE, scale. = TRUE)
+summary(PCA) # Summary statistics of the PCA
+biplot(PCA) # Graphical representation of the PCA
+var <- get_pca_var(PCA)
+var$contrib # Show contribution of variables to PCs
+```
+
+## 9.2 Structural equation modelling
+```{r}
+
+
+
+pc1 = PCA$x[,1]
+
+data_p = data
+levels(data_p$site) = as.factor(environment2$Site)
+environment3 = cbind(environment2, pc1)
+m = merge(x = environment3, y = data_p, by.x = "Site", by.y = "site", all.y = TRUE)
+m2 = m[complete.cases(m[, c("SMI", "PI", "PI_ecto", "PI_endo")]), ] 
+model_PI = psem(
+  lme(PI ~ pc1 + SMI, random = ~1|Site, data=m2),
+  lme(SMI ~ pc1, random = ~1|Site, data=m2)
+  )
+plot(model_PI)
+summary(model_PI)
+
+model_PI_ecto = psem(
+  lme(PI_ecto ~ pc1 + SMI, random = ~1|Site, data=m2),
+  lme(SMI ~ pc1, random = ~1|Site, data=m2)
+  )
+plot(model_PI_ecto)
+summary(model_PI_ecto)
+
+model_PI_endo = psem(
+  lme(PI_endo ~ pc1 + SMI, random = ~1|Site, data=m2),
+  lme(SMI ~ pc1, random = ~1|Site, data=m2)
+  )
+plot(model_PI_endo)
+summary(model_PI_endo)
 ```
